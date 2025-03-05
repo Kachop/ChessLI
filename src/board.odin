@@ -26,53 +26,190 @@ Board :: struct {
     piece_map: map[rune][dynamic]PieceInfo,
 }
 
-draw_board :: proc(win: ^nc.Window, state: GameState) {
+draw_board :: proc(win: ^nc.Window) {
   x : c.int = 0
   y : c.int = 0
-  
-  for file in 'a' ..= 'h' {
-    rank := state.board.tile_map[file]
-    y = 0
-    #reverse for piece, i in rank {
-      if file == state.hovered_file {
-        if cast(c.int)ranks[i] == state.hovered_rank {
-          nc.wattron(win, nc.A_REVERSE)
+  if state.to_move == .WHITE {
+    if state.mode == .SELECT {
+      for file in 'a' ..= 'h' {
+        rank := state.board.tile_map[file]
+        y = 0
+        for index := 7; index >= 0; index -= 1 {
+          piece := rank[index]
           draw_piece(win, x, y, piece)
-          nc.wattroff(win, nc.A_REVERSE)
-        } else {
-          draw_piece(win, x, y, piece)
+          y += 8
         }
-      } else {
-        draw_piece(win, x, y, piece)
+        x += 16
       }
-      y += 8
-    }
-    x += 16
-  }
-  nc.wrefresh(win)
-  x = 0
-  y = 0
+ 
+      x = 0
+      y = 0
 
-  for file in 'a' ..= 'h' {
-    rank := state.board.piece_map[file]
-    y = 0
-    #reverse for piece, i in rank {
-      if file == state.hovered_file {
-        if cast(c.int)ranks[i] == state.hovered_rank {
-          nc.wattron(win, nc.A_REVERSE)
-          draw_piece(win, x, y, piece)
-          nc.wattroff(win, nc.A_REVERSE)
-        } else {
-          draw_piece(win, x, y, piece)
+      for file in 'a' ..= 'h' {
+        rank := state.board.piece_map[file]
+        y = 0
+        for index := 7; index >= 0; index -= 1 {
+          piece := rank[index]
+          if file == state.hovered_file && cast(c.int)index == state.hovered_rank {
+            draw_piece(win, x, y, piece, 5)
+          } else {
+            draw_piece(win, x, y, piece)
+          }
+          y += 8
         }
-      } else {
-        draw_piece(win, x, y, piece)
+        x += 16
       }
-      y += 8
+    } else if state.mode == .MOVE {
+      for file in 'a' ..= 'h' {
+        rank := state.board.tile_map[file]
+        y = 0
+        for index := 7; index >= 0; index -= 1 {
+          piece := rank[index]
+          draw_piece(win, x, y, piece)
+          y += 8
+        }
+        x += 16
+      }
+
+      x = 0
+      y = 0
+
+      for file in 'a' ..= 'h' {
+        rank := state.board.tile_map[file]
+        y = 0
+        for index := 7; index >= 0; index -= 1 {
+          piece := rank[index]
+          for i in 0 ..< len(state.move_option_files) {
+            if file == state.move_option_files[i] && cast(c.int)index == state.move_option_ranks[i] {
+              draw_piece(win, x, y, piece, 6)
+            }
+          }
+          for i in 0 ..< len(state.capture_option_files) {
+            if file == state.capture_option_files[i] && cast(c.int)index == state.capture_option_ranks[i] {
+              draw_piece(win, x, y, piece, 5)
+            }
+          }
+          y += 8
+        }
+        x += 16
+      }
+
+      x = 0
+      y = 0
+
+      for file in 'a' ..= 'h' {
+        rank := state.board.piece_map[file]
+        y = 0
+        for index := 7; index >= 0; index -= 1 {
+          piece := rank[index]
+          if file == state.selected_file && cast(c.int)index == state.selected_rank {
+            draw_piece(win, x, y, piece, 5)
+          } else {
+            draw_piece(win, x, y, piece)
+          }
+          if file == state.hovered_file && cast(c.int)index == state.hovered_rank {
+            nc.wattron(win, nc.A_BLINK)
+            draw_piece(win, x, y, state.board.piece_map[state.selected_file][state.selected_rank])
+            nc.wattroff(win, nc.A_BLINK)
+          } else {
+            draw_piece(win, x, y, piece)
+          }
+          y += 8
+        }
+        x += 16
+      }
     }
-    x += 16
+  } else {
+    if state.mode == .SELECT {
+      for file := 'h'; file >= 'a'; file -= 1 {
+        rank := state.board.tile_map[file]
+        y = 0
+        for index := 0; index <= 7; index += 1 {
+          piece := rank[index]
+          draw_piece(win, x, y, piece)
+          y += 8
+        }
+        x += 16
+      }
+ 
+      x = 0
+      y = 0
+
+      for file := 'h'; file >= 'a'; file -= 1 {
+        rank := state.board.piece_map[file]
+        y = 0
+        for index := 0; index <= 7; index += 1 {
+          piece := rank[index]
+          if file == state.hovered_file && cast(c.int)index == state.hovered_rank {
+            draw_piece(win, x, y, piece, 5)
+          } else {
+            draw_piece(win, x, y, piece)
+          }
+          y += 8
+        }
+        x += 16
+      }
+    } else if state.mode == .MOVE {
+      for file := 'h'; file >= 'a'; file -= 1 {
+        rank := state.board.tile_map[file]
+        y = 0
+        for index := 0; index <= 7; index += 1 {
+          piece := rank[index]
+          draw_piece(win, x, y, piece)
+          y += 8
+        }
+        x += 16
+      }
+
+      x = 0
+      y = 0
+
+      for file := 'h'; file >= 'a'; file -= 1 {
+        rank := state.board.tile_map[file]
+        y = 0
+        for index := 0; index <= 7; index += 1 {
+          piece := rank[index]
+          for i in 0 ..< len(state.move_option_files) {
+            if file == state.move_option_files[i] && cast(c.int)index == state.move_option_ranks[i] {
+              draw_piece(win, x, y, piece, 6)
+            }
+          }
+          for i in 0 ..< len(state.capture_option_files) {
+            if file == state.capture_option_files[i] && cast(c.int)index == state.capture_option_ranks[i] {
+              draw_piece(win, x, y, piece, 5)
+            }
+          }
+          y += 8
+        }
+        x += 16
+      }
+
+      x = 0
+      y = 0
+
+      for file := 'h'; file >= 'a'; file -= 1 {
+        rank := state.board.piece_map[file]
+        y = 0
+        for index := 0; index <= 7; index += 1 {
+          piece := rank[index]
+          if file == state.selected_file && cast(c.int)index == state.selected_rank {
+            draw_piece(win, x, y, piece, 5)
+          } else {
+            draw_piece(win, x, y, piece)
+          }
+          if file == state.hovered_file && cast(c.int)index == state.hovered_rank {
+            nc.wattron(win, nc.A_BLINK)
+            draw_piece(win, x, y, state.board.piece_map[state.selected_file][state.selected_rank])
+            nc.wattroff(win, nc.A_BLINK)
+          } else {
+            draw_piece(win, x, y, piece)
+          }
+          y += 8
+        }
+        x += 16
+      }
+    }
   }
-  nc.wrefresh(win)
 }
 
 getDefaultBoard :: proc() -> Board {
@@ -96,4 +233,26 @@ getDefaultBoard :: proc() -> Board {
     board.piece_map['g'] = [dynamic]PieceInfo{KNIGHT_W, PAWN_W, PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}, PAWN_B, KNIGHT_B}
     board.piece_map['h'] = [dynamic]PieceInfo{ROOK_W, PAWN_W, PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}, PAWN_B, ROOK_B}
     return board
+}
+
+check_square_for_piece :: proc(file: rune, rank: c.int, colour: Colour) -> bool {
+  if state.board.piece_map[file][rank].piece != .NONE && state.board.piece_map[file][rank].colour == colour {
+    return true
+  }
+  return false
+}
+
+check_valid_move_or_capture :: proc(file: rune, rank: c.int) -> bool {
+  for i in 0 ..< len(state.move_option_files) {
+    if state.hovered_file == state.move_option_files[i] && state.hovered_rank == state.move_option_ranks[i] {
+      return true
+    }
+  }
+
+  for i in 0 ..< len(state.capture_option_files) {
+    if state.hovered_file == state.capture_option_files[i] && state.hovered_rank == state.capture_option_ranks[i] {
+      return true
+    }
+  }
+  return false
 }

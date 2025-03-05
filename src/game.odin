@@ -19,6 +19,28 @@ files_str :: files_str_set{'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'}
 ranks_str :: ranks_str_set{'1', '2', '3', '4', '5', '6', '7', '8'}
 ranks_num :: ranks_num_set{1, 2, 3, 4, 5, 6, 7, 8}
 
+get_pawn_moves :: proc() {
+  if state.to_move == .WHITE {
+    if !check_square_for_piece(state.selected_file, state.selected_rank+1, .BLACK) && !check_square_for_piece(state.selected_file, state.selected_rank+1, .WHITE) {
+      append(&state.move_option_files, state.selected_file)
+      append(&state.move_option_ranks, state.selected_rank+1)
+    }
+    if state.selected_rank == 1 {
+      //If pawn has not yet moved
+      if !check_square_for_piece(state.selected_file, state.selected_rank+2, .BLACK) && !check_square_for_piece(state.selected_file, state.selected_rank+2, .WHITE) {
+        append(&state.move_option_files, state.selected_file)
+        append(&state.move_option_ranks, state.selected_rank+2)
+      }
+    }
+  } else {
+    if state.selected_rank == 6 {
+      //If pawn has not yet moved
+    } else {
+      //Pawn has already moved
+    }
+  }
+}
+
 check_pawn_move :: proc(move: string, state: ^GameState) -> bool {
     to_rank := rune_to_num(cast(rune)move[1])
     rank: u8

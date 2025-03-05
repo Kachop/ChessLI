@@ -183,29 +183,56 @@ KING_B :: PieceInfo {
     image = KING_IMG,
 }
 
-draw_piece :: proc(win: ^nc.Window, x, y: c.int, piece: PieceInfo) {
+draw_piece :: proc(win: ^nc.Window, x, y: c.int, piece: PieceInfo, colour: c.int = 0) {
   draw_x := x
   draw_y := y
 
-  nc.use_default_colors()
-  nc.start_color()
- 
   for pixel, i in piece.image {
     if piece.piece != .NONE {
       if pixel == 1 {
         if piece.colour == .WHITE {
-          nc.wattron(win, nc.COLOR_BLUE)
-          nc.mvwprintw(win, draw_y, draw_x, "%s", WHITE_PIECE)
-          nc.wattroff(win, nc.COLOR_BLUE)
+          if colour == 0 {
+            nc.wattron(win, nc.COLOR_PAIR(1))
+            nc.mvwprintw(win, draw_y, draw_x, "%s", WHITE_PIECE)
+            nc.wattroff(win, nc.COLOR_PAIR(1))
+          } else {
+            nc.wattron(win, nc.COLOR_PAIR(colour))
+            nc.mvwprintw(win, draw_y, draw_x, "%s", WHITE_PIECE)
+            nc.wattroff(win, nc.COLOR_PAIR(colour))
+          }
         } else {
-          nc.mvwprintw(win, draw_y, draw_x, "%s", BLACK_PIECE)
+          if colour == 0 {
+            nc.wattron(win, nc.COLOR_PAIR(2))
+            nc.mvwprintw(win, draw_y, draw_x, "%s", BLACK_PIECE)
+            nc.wattroff(win, nc.COLOR_PAIR(2))
+          } else {
+            nc.wattron(win, nc.COLOR_PAIR(colour))
+            nc.mvwprintw(win, draw_y, draw_x, "%s", BLACK_PIECE)
+            nc.wattroff(win, nc.COLOR_PAIR(colour))
+          }
         }
       }
     } else if piece.piece == .NONE && piece.colour != .NONE {
       if piece.colour == .WHITE {
-        nc.mvwprintw(win, draw_y, draw_x, "%s", WHITE_BACKGROUND)
+        if colour == 0 {
+          nc.wattron(win, nc.COLOR_PAIR(3))
+          nc.mvwprintw(win, draw_y, draw_x, "%s", BLACK_BACKGROUND)
+          nc.wattroff(win, nc.COLOR_PAIR(3))
+        } else {
+          nc.wattron(win, nc.COLOR_PAIR(colour))
+          nc.mvwprintw(win, draw_y, draw_x, "%s", BLACK_BACKGROUND)
+          nc.wattroff(win, nc.COLOR_PAIR(colour))
+        }
       } else {
-        nc.mvwprintw(win, draw_y, draw_x, "%s", BLACK_BACKGROUND)
+        if colour == 0 {
+          nc.wattron(win, nc.COLOR_PAIR(4))
+          nc.mvwprintw(win, draw_y, draw_x, "%s", BLACK_BACKGROUND)
+          nc.wattroff(win, nc.COLOR_PAIR(4))
+        } else {
+          nc.wattron(win, nc.COLOR_PAIR(colour))
+          nc.mvwprintw(win, draw_y, draw_x, "%s", BLACK_BACKGROUND)
+          nc.wattroff(win, nc.COLOR_PAIR(colour))
+        }
       }
     }
 
@@ -216,5 +243,5 @@ draw_piece :: proc(win: ^nc.Window, x, y: c.int, piece: PieceInfo) {
       draw_y += 1
     }
   }
-  nc.wrefresh(win)
+  //nc.wrefresh(win)
 }
