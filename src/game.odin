@@ -547,7 +547,215 @@ get_knight_moves_and_captures :: proc() {
 }
 
 get_bishop_moves_and_captures :: proc() {
-
+  moves_found: bool
+  increment : c.int = 1
+  if state.to_move == .WHITE {
+    //Up-right diagonals
+    if state.selected_file < 'h' && state.selected_rank < 7 {
+      for !moves_found {
+        if !check_square_for_piece(state.selected_file+cast(rune)increment, state.selected_rank+increment, .BLACK) {
+          if !check_square_for_piece(state.selected_file+cast(rune)increment, state.selected_rank+increment, .WHITE) {
+            append(&state.move_option_files, state.selected_file+cast(rune)increment)
+            append(&state.move_option_ranks, state.selected_rank+increment)
+            increment += 1
+          } else {
+            moves_found = true
+          }
+        } else {
+          append(&state.capture_option_files, state.selected_file+cast(rune)increment)
+          append(&state.capture_option_ranks, state.selected_rank+increment)
+          moves_found = true
+        }
+        if state.selected_file + cast(rune)increment > 'h' {
+          moves_found = true
+        }
+        if state.selected_rank + increment > 7 {
+          moves_found = true
+        }
+      }
+    }
+    moves_found = false
+    increment = 1
+    //Down-right diagonals
+    if state.selected_file < 'h' && state.selected_rank > 0 {
+      for !moves_found {
+        if !check_square_for_piece(state.selected_file+cast(rune)increment, state.selected_rank-increment, .BLACK) {
+          if !check_square_for_piece(state.selected_file+cast(rune)increment, state.selected_rank-increment, .WHITE) {
+            append(&state.move_option_files, state.selected_file+cast(rune)increment)
+            append(&state.move_option_ranks, state.selected_rank-increment)
+            increment += 1
+          } else {
+            moves_found = true
+          }
+        } else {
+          append(&state.capture_option_files, state.selected_file+cast(rune)increment)
+          append(&state.capture_option_ranks, state.selected_rank-increment)
+          moves_found = true
+        }
+        if state.selected_file + cast(rune)increment > 'h' {
+          moves_found = true
+        }
+        if state.selected_rank - increment < 0 {
+          moves_found = true
+        }
+      }
+    }
+    moves_found = false
+    increment = 1
+    //Down-left diagonals
+    if state.selected_file < 'a' && state.selected_rank > 0 {
+      for !moves_found {
+        if !check_square_for_piece(state.selected_file-cast(rune)increment, state.selected_rank-increment, .BLACK) {
+          if !check_square_for_piece(state.selected_file-cast(rune)increment, state.selected_rank-increment, .WHITE) {
+            append(&state.move_option_files, state.selected_file-cast(rune)increment)
+            append(&state.move_option_ranks, state.selected_rank-increment)
+            increment += 1
+          } else {
+            moves_found = true
+          }
+        } else {
+          append(&state.capture_option_files, state.selected_file-cast(rune)increment)
+          append(&state.capture_option_ranks, state.selected_rank-increment)
+          moves_found = true
+        }
+        if state.selected_file + cast(rune)increment < 'a' {
+          moves_found = true
+        }
+      if state.selected_rank + increment < 0 {
+          moves_found = true
+        }
+      }
+    }
+    moves_found = false
+    increment = 1
+    //Up-left diagonals
+    if state.selected_file > 'a' && state.selected_rank < 7 {
+      for !moves_found {
+        if !check_square_for_piece(state.selected_file-cast(rune)increment, state.selected_rank+increment, .BLACK) {
+          if !check_square_for_piece(state.selected_file-cast(rune)increment, state.selected_rank+increment, .WHITE) {
+            append(&state.move_option_files, state.selected_file-cast(rune)increment)
+            append(&state.move_option_ranks, state.selected_rank+increment)
+            increment += 1
+          } else {
+            moves_found = true
+          }
+        } else {
+          append(&state.capture_option_files, state.selected_file-cast(rune)increment)
+          append(&state.capture_option_ranks, state.selected_rank+increment)
+          moves_found = true
+        }
+        if state.selected_file + cast(rune)increment < 'a' {
+          moves_found = true
+        }
+        if state.selected_rank + increment > 7 {
+          moves_found = true
+        }
+      }
+    }
+  } else {
+    //Up-right diagonals
+    if state.selected_file < 'h' && state.selected_rank < 7 {
+      for !moves_found {
+        if !check_square_for_piece(state.selected_file+cast(rune)increment, state.selected_rank+increment, .WHITE) {
+          if !check_square_for_piece(state.selected_file+cast(rune)increment, state.selected_rank+increment, .BLACK) {
+            append(&state.move_option_files, state.selected_file+cast(rune)increment)
+            append(&state.move_option_ranks, state.selected_rank+increment)
+            increment += 1
+          } else {
+            moves_found = true
+          }
+        } else {
+          append(&state.capture_option_files, state.selected_file+cast(rune)increment)
+          append(&state.capture_option_ranks, state.selected_rank+increment)
+          moves_found = true
+        }
+        if state.selected_file + cast(rune)increment > 'h' {
+          moves_found = true
+        }
+        if state.selected_rank + increment > 7 {
+          moves_found = true
+        }
+      }
+    }
+    moves_found = false
+    increment = 1
+    //Down-right diagonals
+    if state.selected_file < 'h' && state.selected_rank > 0 {
+      for !moves_found {
+        if !check_square_for_piece(state.selected_file+cast(rune)increment, state.selected_rank-increment, .WHITE) {
+          if !check_square_for_piece(state.selected_file+cast(rune)increment, state.selected_rank-increment, .BLACK) {
+            append(&state.move_option_files, state.selected_file+cast(rune)increment)
+            append(&state.move_option_ranks, state.selected_rank-increment)
+            increment += 1
+          } else {
+            moves_found = true
+          }
+        } else {
+          append(&state.capture_option_files, state.selected_file+cast(rune)increment)
+          append(&state.capture_option_ranks, state.selected_rank-increment)
+          moves_found = true
+        }
+        if state.selected_file + cast(rune)increment > 'h' {
+          moves_found = true
+        }
+        if state.selected_rank - increment < 0 {
+          moves_found = true
+        }
+      }
+    }
+    moves_found = false
+    increment = 1
+    //Down-left diagonals
+    if state.selected_file < 'a' && state.selected_rank > 0 {
+      for !moves_found {
+        if !check_square_for_piece(state.selected_file-cast(rune)increment, state.selected_rank-increment, .WHITE) {
+          if !check_square_for_piece(state.selected_file-cast(rune)increment, state.selected_rank-increment, .BLACK) {
+            append(&state.move_option_files, state.selected_file-cast(rune)increment)
+            append(&state.move_option_ranks, state.selected_rank-increment)
+            increment += 1
+          } else {
+            moves_found = true
+          }
+        } else {
+          append(&state.capture_option_files, state.selected_file-cast(rune)increment)
+          append(&state.capture_option_ranks, state.selected_rank-increment)
+          moves_found = true
+        }
+        if state.selected_file + cast(rune)increment < 'a' {
+          moves_found = true
+        }
+      if state.selected_rank + increment < 0 {
+          moves_found = true
+        }
+      }
+    }
+    moves_found = false
+    increment = 1
+    //Up-left diagonals
+    if state.selected_file > 'a' && state.selected_rank < 7 {
+      for !moves_found {
+        if !check_square_for_piece(state.selected_file-cast(rune)increment, state.selected_rank+increment, .WHITE) {
+          if !check_square_for_piece(state.selected_file-cast(rune)increment, state.selected_rank+increment, .BLACK) {
+            append(&state.move_option_files, state.selected_file-cast(rune)increment)
+            append(&state.move_option_ranks, state.selected_rank+increment)
+            increment += 1
+          } else {
+            moves_found = true
+          }
+        } else {
+          append(&state.capture_option_files, state.selected_file-cast(rune)increment)
+          append(&state.capture_option_ranks, state.selected_rank+increment)
+          moves_found = true
+        }
+        if state.selected_file + cast(rune)increment < 'a' {
+          moves_found = true
+        }
+        if state.selected_rank + increment > 7 {
+          moves_found = true
+        }
+      }
+    }
+  }
 }
 
 get_rook_moves_and_captures :: proc() {
@@ -735,5 +943,172 @@ get_rook_moves_and_captures :: proc() {
         }
       }
     }
+  }
+}
+
+get_king_moves_and_captures :: proc() {
+  if state.to_move == .WHITE {
+    if state.selected_file < 'h' {
+      //Top Right
+      if state.selected_rank < 7 {
+        if !check_square_for_piece(state.selected_file+1, state.selected_rank+1, .WHITE) && !check_square_for_piece(state.selected_file+1, state.selected_rank+1, .BLACK) {
+          append(&state.move_option_files, state.selected_file+1)
+          append(&state.move_option_ranks, state.selected_rank+1)
+        } else if check_square_for_piece(state.selected_file+1, state.selected_rank+1, .BLACK) {
+          append(&state.capture_option_files, state.selected_file+1)
+          append(&state.capture_option_ranks, state.selected_rank+1)
+        }
+      }
+      //Bottom Right
+      if state.selected_rank > 0 {
+        if !check_square_for_piece(state.selected_file+1, state.selected_rank-1, .WHITE) && !check_square_for_piece(state.selected_file+1, state.selected_rank-1, .BLACK) {
+          append(&state.move_option_files, state.selected_file+1)
+          append(&state.move_option_ranks, state.selected_rank-1)
+        } else if check_square_for_piece(state.selected_file+1, state.selected_rank-1, .BLACK) {
+          append(&state.capture_option_files, state.selected_file+1)
+          append(&state.capture_option_ranks, state.selected_rank-1)
+        }
+      }
+      //Right
+      if !check_square_for_piece(state.selected_file+1, state.selected_rank, .WHITE) && !check_square_for_piece(state.selected_file+1, state.selected_rank, .BLACK) {
+        append(&state.move_option_files, state.selected_file+1)
+        append(&state.move_option_ranks, state.selected_rank)
+      } else if check_square_for_piece(state.selected_file+1, state.selected_rank, .BLACK) {
+        append(&state.capture_option_files, state.selected_file+1)
+        append(&state.capture_option_ranks, state.selected_rank)
+      }
+    }
+    if state.selected_file > 'a' {
+      //Top Left
+      if state.selected_rank < 7 {
+        if !check_square_for_piece(state.selected_file-1, state.selected_rank+1, .WHITE) && !check_square_for_piece(state.selected_file-1, state.selected_rank+1, .BLACK) {
+          append(&state.move_option_files, state.selected_file-1)
+          append(&state.move_option_ranks, state.selected_rank+1)
+        } else if check_square_for_piece(state.selected_file-1, state.selected_rank+1, .BLACK) {
+          append(&state.capture_option_files, state.selected_file-1)
+          append(&state.capture_option_ranks, state.selected_rank+1)
+        }
+      }
+      //Bottom Left
+      if state.selected_rank > 0 {
+        if !check_square_for_piece(state.selected_file-1, state.selected_rank-1, .WHITE) && !check_square_for_piece(state.selected_file-1, state.selected_rank-1, .BLACK) {
+          append(&state.move_option_files, state.selected_file-1)
+          append(&state.move_option_ranks, state.selected_rank-1)
+        } else if check_square_for_piece(state.selected_file-1, state.selected_rank-1, .BLACK) {
+          append(&state.capture_option_files, state.selected_file-1)
+          append(&state.capture_option_ranks, state.selected_rank-1)
+        }
+      }
+      //Left
+      if !check_square_for_piece(state.selected_file-1, state.selected_rank, .WHITE) && !check_square_for_piece(state.selected_file-1, state.selected_rank, .BLACK) {
+        append(&state.move_option_files, state.selected_file-1)
+        append(&state.move_option_ranks, state.selected_rank)
+      } else if check_square_for_piece(state.selected_file-1, state.selected_rank, .BLACK) {
+        append(&state.capture_option_files, state.selected_file-1)
+        append(&state.capture_option_ranks, state.selected_rank)
+      }
+    }
+    //Top
+    if state.selected_rank < 7 {
+      if !check_square_for_piece(state.selected_file, state.selected_rank+1, .WHITE) && !check_square_for_piece(state.selected_file, state.selected_rank+1, .BLACK) {
+        append(&state.move_option_files, state.selected_file)
+        append(&state.move_option_ranks, state.selected_rank+1)
+      } else if check_square_for_piece(state.selected_file, state.selected_rank+1, .BLACK) {
+        append(&state.capture_option_files, state.selected_file)
+        append(&state.capture_option_ranks, state.selected_rank+1)
+      }
+    }
+    //Bottom
+    if state.selected_rank > 0 {
+      if !check_square_for_piece(state.selected_file, state.selected_rank-1, .WHITE) && !check_square_for_piece(state.selected_file, state.selected_rank-1, .BLACK) {
+        append(&state.move_option_files, state.selected_file)
+        append(&state.move_option_ranks, state.selected_rank-1)
+      } else if check_square_for_piece(state.selected_file, state.selected_rank-1, .BLACK) {
+        append(&state.capture_option_files, state.selected_file)
+        append(&state.capture_option_ranks, state.selected_rank-1)
+      }
+    }
+  } else {
+    if state.selected_file < 'h' {
+      //Top Right
+      if state.selected_rank < 7 {
+        if !check_square_for_piece(state.selected_file+1, state.selected_rank+1, .WHITE) && !check_square_for_piece(state.selected_file+1, state.selected_rank+1, .BLACK) {
+          append(&state.move_option_files, state.selected_file+1)
+          append(&state.move_option_ranks, state.selected_rank+1)
+        } else if check_square_for_piece(state.selected_file+1, state.selected_rank+1, .WHITE) {
+          append(&state.capture_option_files, state.selected_file+1)
+          append(&state.capture_option_ranks, state.selected_rank+1)
+        }
+      }
+      //Bottom Right
+      if state.selected_rank > 0 {
+        if !check_square_for_piece(state.selected_file+1, state.selected_rank-1, .WHITE) && !check_square_for_piece(state.selected_file+1, state.selected_rank-1, .BLACK) {
+          append(&state.move_option_files, state.selected_file+1)
+          append(&state.move_option_ranks, state.selected_rank-1)
+        } else if check_square_for_piece(state.selected_file+1, state.selected_rank-1, .WHITE) {
+          append(&state.capture_option_files, state.selected_file+1)
+          append(&state.capture_option_ranks, state.selected_rank-1)
+        }
+      }
+      //Right
+      if !check_square_for_piece(state.selected_file+1, state.selected_rank, .WHITE) && !check_square_for_piece(state.selected_file+1, state.selected_rank, .BLACK) {
+        append(&state.move_option_files, state.selected_file+1)
+        append(&state.move_option_ranks, state.selected_rank)
+      } else if check_square_for_piece(state.selected_file+1, state.selected_rank, .WHITE) {
+        append(&state.capture_option_files, state.selected_file+1)
+        append(&state.capture_option_ranks, state.selected_rank)
+      }
+    }
+    if state.selected_file > 'a' {
+      //Top Left
+      if state.selected_rank < 7 {
+        if !check_square_for_piece(state.selected_file-1, state.selected_rank+1, .WHITE) && !check_square_for_piece(state.selected_file-1, state.selected_rank+1, .BLACK) {
+          append(&state.move_option_files, state.selected_file-1)
+          append(&state.move_option_ranks, state.selected_rank+1)
+        } else if check_square_for_piece(state.selected_file-1, state.selected_rank+1, .WHITE) {
+          append(&state.capture_option_files, state.selected_file-1)
+          append(&state.capture_option_ranks, state.selected_rank+1)
+        }
+      }
+      //Bottom Left
+      if state.selected_rank > 0 {
+        if !check_square_for_piece(state.selected_file-1, state.selected_rank-1, .WHITE) && !check_square_for_piece(state.selected_file-1, state.selected_rank-1, .BLACK) {
+          append(&state.move_option_files, state.selected_file-1)
+          append(&state.move_option_ranks, state.selected_rank-1)
+        } else if check_square_for_piece(state.selected_file-1, state.selected_rank-1, .WHITE) {
+          append(&state.capture_option_files, state.selected_file-1)
+          append(&state.capture_option_ranks, state.selected_rank-1)
+        }
+      }
+      //Left
+      if !check_square_for_piece(state.selected_file-1, state.selected_rank, .WHITE) && !check_square_for_piece(state.selected_file-1, state.selected_rank, .BLACK) {
+        append(&state.move_option_files, state.selected_file-1)
+        append(&state.move_option_ranks, state.selected_rank)
+      } else if check_square_for_piece(state.selected_file-1, state.selected_rank, .WHITE) {
+        append(&state.capture_option_files, state.selected_file-1)
+        append(&state.capture_option_ranks, state.selected_rank)
+      }
+    }
+    //Top
+    if state.selected_rank < 7 {
+      if !check_square_for_piece(state.selected_file, state.selected_rank+1, .WHITE) && !check_square_for_piece(state.selected_file, state.selected_rank+1, .BLACK) {
+        append(&state.move_option_files, state.selected_file)
+        append(&state.move_option_ranks, state.selected_rank+1)
+      } else if check_square_for_piece(state.selected_file, state.selected_rank+1, .WHITE) {
+        append(&state.capture_option_files, state.selected_file)
+        append(&state.capture_option_ranks, state.selected_rank+1)
+      }
+    }
+    //Bottom
+    if state.selected_rank > 0 {
+      if !check_square_for_piece(state.selected_file, state.selected_rank-1, .WHITE) && !check_square_for_piece(state.selected_file, state.selected_rank-1, .BLACK) {
+        append(&state.move_option_files, state.selected_file)
+        append(&state.move_option_ranks, state.selected_rank-1)
+      } else if check_square_for_piece(state.selected_file, state.selected_rank-1, .WHITE) {
+        append(&state.capture_option_files, state.selected_file)
+        append(&state.capture_option_ranks, state.selected_rank-1)
+      }
+    }
+
   }
 }

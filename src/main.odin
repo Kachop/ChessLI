@@ -171,10 +171,14 @@ handle_select_input :: proc(ch: i32) {
     case .KNIGHT:
       get_knight_moves_and_captures()
     case .BISHOP:
+      get_bishop_moves_and_captures()
     case .ROOK:
       get_rook_moves_and_captures()
     case .QUEEN:
+      get_bishop_moves_and_captures()
+      get_rook_moves_and_captures()
     case .KING:
+      get_king_moves_and_captures()
     case .NONE:
     }
     if len(state.move_option_files) > 0 || len(state.capture_option_files) > 0 {
