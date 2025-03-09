@@ -6,8 +6,7 @@ import "core:strings"
 import "core:encoding/ansi"
 import "core:unicode/utf8"
 
-import nc "shared:ncurses/src"
-import "core:c"
+import t "shared:TermCL"
 import "core:math"
 
 Mode :: enum {
@@ -22,19 +21,28 @@ GameState :: struct {
   mode: Mode,
   board: Board,
   hovered_file: rune,
-  hovered_rank: c.int,
+  hovered_rank: uint,
   selected_file: rune,
-  selected_rank: c.int,
+  selected_rank: uint,
   move_option_files: [dynamic]rune,
-  move_option_ranks: [dynamic]c.int,
+  move_option_ranks: [dynamic]uint,
   capture_option_files: [dynamic]rune,
-  capture_option_ranks: [dynamic]c.int,
+  capture_option_ranks: [dynamic]uint,
 }
 
 state := GameState{}
 
 BOARD_WIDTH  :: 130
 BOARD_HEIGHT :: 64
+
+COLOURS := [][2]t.Color_8{
+  {.White, .White},
+  {.Black, .Black},
+  {.Black, .Cyan},
+  {.Black, .Blue},
+  {.Red, .Red},
+  {.Green, .Green}
+}
 
 main :: proc() {
   state.running = true
@@ -44,121 +52,116 @@ main :: proc() {
   state.board = getDefaultBoard()
   state.hovered_file = 'a'
   state.move_option_files = [dynamic]rune{}
-  state.move_option_ranks = [dynamic]c.int{}
+  state.move_option_ranks = [dynamic]uint{}
+  
+  s := t.init_screen()
+  defer t.destroy_screen(&s)
+  t.set_term_mode(&s, .Cbreak)
+  t.hide_cursor(true)
+  t.clear_screen(&s, .Everything)
+  t.blit_screen(&s)
 
-  nc.initscr()
-  nc.cbreak()
-  nc.noecho()
-  nc.use_default_colors()
-  colour_support := nc.has_colors()
-  if colour_support {
-    nc.start_color()
-    nc.init_pair(1, nc.COLOR_WHITE, nc.COLOR_WHITE)
-    nc.init_pair(2, nc.COLOR_BLACK, nc.COLOR_BLACK)
-    nc.init_pair(3, nc.COLOR_BLACK, nc.COLOR_CYAN)
-    nc.init_pair(4, nc.COLOR_BLACK, nc.COLOR_BLUE)
-    nc.init_pair(5, nc.COLOR_RED, nc.COLOR_RED)
-    nc.init_pair(6, nc.COLOR_GREEN, nc.COLOR_GREEN)
-  }
-    
-  WHITE_BACKGROUND_COLOUR := nc.COLOR_PAIR(1)
-  BROWN := nc.COLOR_PAIR(2)
-
-  nc.curs_set(0)
-  nc.refresh()
-
-  board_window := nc.newwin(BOARD_HEIGHT, BOARD_WIDTH, 1, 2)
-  info_window := nc.newwin(40, 120, 66, 2)
-
-  nc.keypad(board_window, true)
-  nc.keypad(info_window, true)
-  nc.refresh()
-  draw_board(board_window)
-  draw_info(info_window)
+  draw_board(&s)
+  draw_info(&s)
 
   for state.running {
-    ch := nc.wgetch(board_window)
-    if state.mode == .SELECT {
-      handle_select_input(ch)
-    } else if state.mode == .MOVE {
-      //Cycle through the available moves and move the piece
-      handle_move_input(ch)
+    defer t.blit_screen(&s)
+
+    t.clear_screen(&s, .Everything)
+
+    input, has_input := t.read(&s)
+    keys := t.parse_keyboard_input(input)
+
+    if keys.key == .Q {
+      state.running = false
     }
 
-    draw_board(board_window)
-    draw_info(info_window)
-    nc.refresh()
+    if state.mode == .SELECT {
+      handle_select_input(keys.key)
+    } else if state.mode == .MOVE {
+      //Cycle through the available moves and move the piece
+      handle_move_input(keys.key)
+    }
+
+    draw_board(&s)
+    draw_info(&s)
   }
-    
-  nc.endwin()
+  //t.clear_screen(&s, .Everything)
+  t.hide_cursor(false)
+  t.set_term_mode(&s, .Restored)
   fmt.println("Closing program")
 }
 
-draw_info :: proc(win: ^nc.Window) {
-  x : c.int = 2
-  y : c.int = 1
-  nc.box(win, 0, 0)
+draw_info :: proc(win: ^t.Screen) {
+  x : uint = 2
+  y : uint = 70
   
-  nc.mvwaddstr(win, y, x, fmt.ctprintf("Go: %v", state.to_move))
+  t.move_cursor(win, y, x)
+  t.write(win, fmt.tprintf("Go: %v", state.to_move))
   y += 1
-
-  nc.mvwaddstr(win, y, x, fmt.ctprintf("Hover file: %v", state.hovered_file))
-  y += 1
-  nc.mvwaddstr(win, y, x, fmt.ctprintf("Hover rank: %v", state.hovered_rank))
-  y += 1
-  nc.mvwaddstr(win, y, x, fmt.ctprintf("Mode: %v", state.mode))
-  y += 1
-  nc.mvwaddstr(win, y, x, fmt.ctprintf("Available moves: %v", len(state.move_option_files)))
-  y += 1
-
-  //ch := nc.wgetch(win)
-
-  //nc.mvwaddstr(win, y, x, fmt.ctprintf("Last key pressed: %3d", ch))
-  //y += 1
   
-  nc.mvwaddstr(win, y, x, fmt.ctprintf("Moves:"))
+  t.move_cursor(win, y, x)
+  t.write(win, fmt.tprintf("Hover file: %v", state.hovered_file))
+  y += 1
+
+  t.move_cursor(win, y, x)
+  t.write(win, fmt.tprintf("Hover rank: %v", state.hovered_rank))
+  y += 1
+
+  t.move_cursor(win, y, x)
+  t.write(win, fmt.tprintf("Mode: %v", state.mode))
+  y += 1
+
+  t.move_cursor(win, y, x)
+  t.write(win, fmt.tprintf("Available moves: %v", len(state.move_option_files)))
+  y += 1
+
+  t.move_cursor(win, y, x)
+  t.write(win, fmt.tprintf("Moves:"))
   y += 1
 
   for i in 0 ..< len(state.move_option_files) {
-    nc.mvwaddstr(win, y, x, fmt.ctprintf("%v%v", state.move_option_files[i], state.move_option_ranks[i]+1))
+    t.move_cursor(win, y, x)
+    t.write(win, fmt.tprintf("%v%v", state.move_option_files[i], state.move_option_ranks[i]+1))
     y += 1
   }
 
   y += 1
 
-  nc.mvwaddstr(win, y, x, fmt.ctprintf("Available captures: %v", len(state.capture_option_files)))
+  t.move_cursor(win, y, x)
+  t.write(win, fmt.tprintf("Available captures: %v", len(state.capture_option_files)))
   y += 1
 
-  nc.wrefresh(win)
+  t.blit_screen(win)
 }
 
-handle_select_input :: proc(ch: i32) {
-  switch ch {
-  case 'w', nc.KEY_UP:
+handle_select_input :: proc(key: t.Key) {
+  #partial switch key {
+  case .W, .Arrow_Up:
     if state.to_move == .WHITE {
       increment_rank_selected()
     } else {
       decrement_rank_selected()
     }
-  case 'a', nc.KEY_LEFT:
+  case .A, .Arrow_Left:
     if state.to_move == .WHITE {
       decrement_file_selected()
     } else {
       increment_file_selected()
     }
-  case 's', nc.KEY_DOWN:
+  case .S, .Arrow_Down:
     if state.to_move == .WHITE {
       decrement_rank_selected()
     } else {
       increment_rank_selected()
     }
-  case 'd', nc.KEY_RIGHT:
+  case .D, .Arrow_Right:
     if state.to_move == .WHITE {
       increment_file_selected()
     } else {
       decrement_file_selected()
     }
-  case 10:
+  case .Enter:
     state.selected_file = state.hovered_file
     state.selected_rank = state.hovered_rank
     clear(&state.move_option_files)
@@ -184,38 +187,36 @@ handle_select_input :: proc(ch: i32) {
     if len(state.move_option_files) > 0 || len(state.capture_option_files) > 0 {
       state.mode = .MOVE
     }
-  case:
-    nc.refresh()
   }
 }
 
-handle_move_input :: proc(ch: i32) {
-  switch ch {
-  case 'w', nc.KEY_UP:
+handle_move_input :: proc(key: t.Key) {
+  #partial switch key {
+  case .W, .Arrow_Up:
     if state.to_move == .WHITE {
       increment_rank_move()
     } else {
       decrement_rank_move()
     }
-  case 'a', nc.KEY_LEFT:
+  case .A, .Arrow_Left:
     if state.to_move == .WHITE {
       decrement_file_move()
     } else {
       increment_file_move()
     }
-  case 's', nc.KEY_DOWN:
+  case .S, .Arrow_Down:
     if state.to_move == .WHITE {
       decrement_rank_move()
     } else {
       increment_rank_move()
     }
-  case 'd', nc.KEY_RIGHT:
+  case .D, .Arrow_Right:
     if state.to_move == .WHITE {
       increment_file_move()
     } else {
       decrement_file_move()
     }
-  case 10://Enter
+  case .Enter:
     if check_valid_move_or_capture(state.hovered_file, state.hovered_rank) {
       state.board.piece_map[state.hovered_file][state.hovered_rank] = state.board.piece_map[state.selected_file][state.selected_rank]
       state.board.piece_map[state.selected_file][state.selected_rank] = PieceInfo{}
@@ -227,25 +228,16 @@ handle_move_input :: proc(ch: i32) {
         state.move_no += 1
       }
       temp_file, temp_rank := find_closest_piece('a', 'h', 0, 7, state.to_move)
-      if temp_file != -1 && temp_rank != -1 {
+      if temp_file != -1 {
         state.hovered_file = temp_file
         state.hovered_rank = temp_rank
       }
     }
-  case 9://TAB
-  case 27://ESC
+  case .Tab:
+  case .Escape:
     state.mode = .SELECT
-    temp_file: rune
-    temp_rank: c.int
-    if state.to_move == .WHITE {
-      temp_file, temp_rank = find_closest_piece('a', 'h', 0, 7, .WHITE)
-    } else {
-      temp_file, temp_rank = find_closest_piece('a', 'h', 0, 7, .BLACK)
-    }
-    if temp_file != -1 && temp_rank != -1 {
-      state.hovered_file = temp_file
-      state.hovered_rank = temp_rank
-    }
+    state.hovered_file = state.selected_file
+    state.hovered_rank = state.selected_rank
   }
 }
 
@@ -257,7 +249,7 @@ increment_file_selected :: proc() {
       if state.hovered_file == 'h' {
         state.hovered_file = original_file
         temp_file, temp_rank := find_closest_piece(original_file+1, 'h', 0, 7, state.to_move)
-        if temp_file != -1 && temp_rank != -1 {
+        if temp_file != -1 {
           state.hovered_file = temp_file
           state.hovered_rank = temp_rank
         }
@@ -276,7 +268,7 @@ decrement_file_selected :: proc() {
       if state.hovered_file == 'a' {
         state.hovered_file = original_file
         temp_file, temp_rank := find_closest_piece(original_file-1, 'a', 0, 7, state.to_move)
-        if temp_file != -1 && temp_rank != -1 {
+        if temp_file != -1 {
           state.hovered_file = temp_file
           state.hovered_rank = temp_rank
         }
@@ -295,7 +287,7 @@ increment_rank_selected :: proc() {
       if state.hovered_rank == 7 {
         state.hovered_rank = original_rank
         temp_file, temp_rank := find_closest_piece('a', 'h', original_rank+1, 7, state.to_move)
-        if temp_file != -1 && temp_rank != -1 {
+        if temp_file != -1 {
           state.hovered_file = temp_file
           state.hovered_rank = temp_rank
         }
@@ -314,7 +306,7 @@ decrement_rank_selected :: proc() {
       if state.hovered_rank == 0 {
         state.hovered_rank = original_rank
         temp_file, temp_rank := find_closest_piece('a', 'h', original_rank-1, 0, state.to_move)
-        if temp_file != -1 && temp_rank != -1 {
+        if temp_file != -1 {
           state.hovered_file = temp_file
           state.hovered_rank = temp_rank
         }
@@ -334,7 +326,7 @@ increment_file_move :: proc() {
         state.hovered_file = original_file
         temp_file, temp_rank := find_closest_move_or_capture(original_file+1, 'h', 0, 7)
 
-        if temp_file != -1 && temp_rank != -1 {
+        if temp_file != -1 {
           if check_valid_move_or_capture(temp_file, temp_rank) {
             state.hovered_file = temp_file
             state.hovered_rank = temp_rank
@@ -356,7 +348,7 @@ decrement_file_move :: proc() {
         state.hovered_file = original_file
         temp_file, temp_rank := find_closest_move_or_capture(original_file-1, 'a', 0, 7)
 
-        if temp_file != -1 && temp_rank != -1 {
+        if temp_file != -1 {
           if check_valid_move_or_capture(temp_file, temp_rank) {
             state.hovered_file = temp_file
             state.hovered_rank = temp_rank
@@ -378,7 +370,7 @@ increment_rank_move :: proc() {
         state.hovered_rank = original_rank
         temp_file, temp_rank := find_closest_move_or_capture('a', 'h', original_rank+1, 7)
 
-        if temp_file != -1 && temp_rank != -1 {
+        if temp_file != -1 {
           if check_valid_move_or_capture(temp_file, temp_rank) {
             state.hovered_file = temp_file
             state.hovered_rank = temp_rank
@@ -400,7 +392,7 @@ decrement_rank_move :: proc() {
         state.hovered_rank = original_rank
         temp_file, temp_rank := find_closest_move_or_capture('a', 'h', original_rank-1, 0)
 
-        if temp_file != -1 && temp_rank != -1 {
+        if temp_file != -1 {
           if check_valid_move_or_capture(temp_file, temp_rank) {
             state.hovered_file = temp_file
             state.hovered_rank = temp_rank
@@ -413,22 +405,30 @@ decrement_rank_move :: proc() {
   }
 }
 
-find_closest_piece :: proc(start_file, end_file: rune, start_rank, end_rank: c.int, colour: Colour) -> (file: rune, rank: c.int) {
-  piece_files := [dynamic]rune{}
-  piece_ranks := [dynamic]c.int{}
+find_closest_piece :: proc(start_file, end_file: rune, start_rank, end_rank: uint, colour: Colour) -> (file: rune, rank: uint) {
+  start_file := start_file
+  end_file := end_file
+  start_rank := start_rank
+  end_rank := end_rank
 
-  file_increment: rune
-  rank_increment: c.int
+  piece_files := [dynamic]rune{}
+  piece_ranks := [dynamic]uint{}
+
+  if start_file > end_file {
+    temp_file := start_file
+    start_file = end_file
+    end_file = temp_file
+  }
+
+  if start_rank > end_rank {
+    temp_start := start_rank
+    start_rank = end_rank
+    end_rank = temp_start
+  }
 
   if start_file == end_file {
-    if start_rank < end_rank {
-      rank_increment = 1
-    } else {
-      rank_increment = -1
-    }
-    
     file := start_file
-    for rank := start_rank; rank <= end_rank if (start_rank <= end_rank) else rank >= end_rank; rank += rank_increment {
+    for rank := start_rank; rank <= end_rank; rank += 1 {
       piece := state.board.piece_map[file][rank]
       if piece.colour == colour {
         if !(file == state.hovered_file && rank == state.hovered_rank) {
@@ -438,13 +438,8 @@ find_closest_piece :: proc(start_file, end_file: rune, start_rank, end_rank: c.i
       }
     }
   } else if start_rank == end_rank {
-    if start_file < end_file {
-      file_increment = 1
-    } else {
-      file_increment = -1
-    }
     rank := start_rank
-    for file := start_file; file <= end_file if (start_file <= end_file) else file >= end_file; file += file_increment {
+    for file := start_file; file <= end_file; file += 1 {
       piece := state.board.piece_map[file][rank]
       if piece.colour == colour {
         if !(file == state.hovered_file && rank == state.hovered_rank) {
@@ -454,20 +449,8 @@ find_closest_piece :: proc(start_file, end_file: rune, start_rank, end_rank: c.i
       }
     }
   } else {
-    if start_file < end_file {
-      file_increment = 1
-    } else {
-      file_increment = -1
-    }
-
-    if start_rank < end_rank {
-      rank_increment = 1
-    } else {
-      rank_increment = -1
-    }
-
-    for file := start_file; file <= end_file if (start_file <= end_file) else file >= end_file; file += file_increment {
-      for rank := start_rank; rank <= end_rank if (start_rank <= end_rank) else rank >= end_rank; rank += rank_increment {
+    for file := start_file; file <= end_file; file += 1 {
+      for rank := start_rank; rank <= end_rank; rank += 1 {
         piece := state.board.piece_map[file][rank]
         if piece.colour == colour {
           if !(file == state.hovered_file && rank == state.hovered_rank) {
@@ -480,7 +463,7 @@ find_closest_piece :: proc(start_file, end_file: rune, start_rank, end_rank: c.i
   }
 
   piece_file: rune
-  piece_rank: c.int
+  piece_rank: uint
 
   lowest_dist : f32 = 100
 
@@ -496,14 +479,14 @@ find_closest_piece :: proc(start_file, end_file: rune, start_rank, end_rank: c.i
     }
   }
   if len(piece_files) == 0 {
-    return -1, -1
+    return -1, 0
   }
   return piece_file, piece_rank
 }
 
-find_closest_move_or_capture :: proc(start_file, end_file: rune, start_rank, end_rank: c.int) -> (file: rune, rank: c.int) {
+find_closest_move_or_capture :: proc(start_file, end_file: rune, start_rank, end_rank: uint) -> (file: rune, rank: uint) {
   piece_files := [dynamic]rune{}
-  piece_ranks := [dynamic]c.int{}
+  piece_ranks := [dynamic]uint{}
 
   for i in 0 ..< len(state.move_option_files) {
     file := state.move_option_files[i]
@@ -562,7 +545,7 @@ find_closest_move_or_capture :: proc(start_file, end_file: rune, start_rank, end
   }
 
   piece_file: rune
-  piece_rank: c.int
+  piece_rank: uint
 
   lowest_dist : f32 = 100
 
@@ -578,7 +561,7 @@ find_closest_move_or_capture :: proc(start_file, end_file: rune, start_rank, end
     }
   }
   if len(piece_files) == 0 {
-    return -1, -1
+    return -1, 0
   }
   return piece_file, piece_rank
 }

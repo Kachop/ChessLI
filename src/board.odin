@@ -3,8 +3,7 @@
 package main
 
 import "core:fmt"
-import nc "shared:ncurses/src"
-import "core:c"
+import t "shared:TermCL"
 
 /*
 All tools for managing to board and board-state
@@ -26,15 +25,15 @@ Board :: struct {
     piece_map: map[rune][dynamic]PieceInfo,
 }
 
-draw_board :: proc(win: ^nc.Window) {
-  x : c.int = 0
-  y : c.int = 0
+draw_board :: proc(win: ^t.Screen) {
+  x : uint = 2
+  y : uint = 1
 
   if state.to_move == .WHITE {
     //Draw tiles
     for file in 'a' ..= 'h' {
       rank := state.board.tile_map[file]
-      y = 0
+      y = 1
       for index := 7; index >= 0; index -= 1 {
         tile := rank[index]
         piece := state.board.piece_map[file][index]
@@ -46,40 +45,40 @@ draw_board :: proc(win: ^nc.Window) {
       x += 16
     }
     if state.mode == .SELECT { 
-      x = 0
-      y = 0
+      x = 2
+      y = 1
 
       for file in 'a' ..= 'h' {
         //Draw pieces
         rank := state.board.piece_map[file]
-        y = 0
+        y = 1
         for index := 7; index >= 0; index -= 1 {
           piece := rank[index]
-          if file == state.hovered_file && cast(c.int)index == state.hovered_rank {
-            draw_piece(win, x, y, piece, 5)
+          if file == state.hovered_file && cast(uint)index == state.hovered_rank {
+            draw_piece(win, x, y, piece, 4)
           }
           y += 8
         }
         x += 16
       }
     } else if state.mode == .MOVE {
-      x = 0
-      y = 0
+      x = 2
+      y = 1
 
       for file in 'a' ..= 'h' {
         rank := state.board.tile_map[file]
-        y = 0
+        y = 1
         for index := 7; index >= 0; index -= 1 {
           piece := rank[index]
           for i in 0 ..< len(state.move_option_files) {
-            if file == state.move_option_files[i] && cast(c.int)index == state.move_option_ranks[i] {
-              draw_piece(win, x, y, piece, 6)
+            if file == state.move_option_files[i] && cast(uint)index == state.move_option_ranks[i] {
+              draw_piece(win, x, y, piece, 5)
             }
           }
           for i in 0 ..< len(state.capture_option_files) {
-            if file == state.capture_option_files[i] && cast(c.int)index == state.capture_option_ranks[i] {
+            if file == state.capture_option_files[i] && cast(uint)index == state.capture_option_ranks[i] {
               tile := state.board.tile_map[file][index]
-              draw_piece(win, x, y, tile, 5)
+              draw_piece(win, x, y, tile, 4)
               piece := state.board.piece_map[file][index]
               draw_piece(win, x, y, piece)
             }
@@ -88,18 +87,18 @@ draw_board :: proc(win: ^nc.Window) {
         }
         x += 16
       }
-      x = 0
-      y = 0
+      x = 2
+      y = 1
 
       for file in 'a' ..= 'h' {
         rank := state.board.piece_map[file]
-        y = 0
+        y = 1
         for index := 7; index >= 0; index -= 1 {
           piece := rank[index]
-          if file == state.selected_file && cast(c.int)index == state.selected_rank {
-            draw_piece(win, x, y, piece, 5)
+          if file == state.selected_file && cast(uint)index == state.selected_rank {
+            draw_piece(win, x, y, piece, 4)
           }
-          if file == state.hovered_file && cast(c.int)index == state.hovered_rank {
+          if file == state.hovered_file && cast(uint)index == state.hovered_rank {
             draw_piece(win, x, y, state.board.piece_map[state.selected_file][state.selected_rank])
           }
           y += 8
@@ -111,7 +110,7 @@ draw_board :: proc(win: ^nc.Window) {
     //Draw tiles and pieces
     for file := 'h'; file >= 'a'; file -= 1 {
       rank := state.board.tile_map[file]
-      y = 0
+      y = 1
       for index := 0; index <= 7; index += 1 {
         tile := rank[index]
         piece := state.board.piece_map[file][index]
@@ -123,39 +122,39 @@ draw_board :: proc(win: ^nc.Window) {
       x += 16
     }
     if state.mode == .SELECT {
-      x = 0
-      y = 0
+      x = 2
+      y = 1
 
       for file := 'h'; file >= 'a'; file -= 1 {
         rank := state.board.piece_map[file]
-        y = 0
+        y = 1
         for index := 0; index <= 7; index += 1 {
           piece := rank[index]
-          if file == state.hovered_file && cast(c.int)index == state.hovered_rank {
-            draw_piece(win, x, y, piece, 5)
+          if file == state.hovered_file && cast(uint)index == state.hovered_rank {
+            draw_piece(win, x, y, piece, 4)
           }
           y += 8
         }
         x += 16
       }
     } else if state.mode == .MOVE {
-      x = 0
-      y = 0
+      x = 2
+      y = 1
 
       for file := 'h'; file >= 'a'; file -= 1 {
         rank := state.board.tile_map[file]
-        y = 0
+        y = 1
         for index := 0; index <= 7; index += 1 {
           piece := rank[index]
           for i in 0 ..< len(state.move_option_files) {
-            if file == state.move_option_files[i] && cast(c.int)index == state.move_option_ranks[i] {
-              draw_piece(win, x, y, piece, 6)
+            if file == state.move_option_files[i] && cast(uint)index == state.move_option_ranks[i] {
+              draw_piece(win, x, y, piece, 5)
             }
           }
           for i in 0 ..< len(state.capture_option_files) {
-            if file == state.capture_option_files[i] && cast(c.int)index == state.capture_option_ranks[i] {
+            if file == state.capture_option_files[i] && cast(uint)index == state.capture_option_ranks[i] {
               tile := state.board.tile_map[file][index]
-              draw_piece(win, x, y, tile, 5)
+              draw_piece(win, x, y, tile, 4)
               piece := state.board.piece_map[file][index]
               draw_piece(win, x, y, piece)
             }
@@ -165,18 +164,18 @@ draw_board :: proc(win: ^nc.Window) {
         x += 16
       }
 
-      x = 0
-      y = 0
+      x = 2
+      y = 1
 
       for file := 'h'; file >= 'a'; file -= 1 {
         rank := state.board.piece_map[file]
-        y = 0
+        y = 1
         for index := 0; index <= 7; index += 1 {
           piece := rank[index]
-          if file == state.selected_file && cast(c.int)index == state.selected_rank {
-            draw_piece(win, x, y, piece, 5)
+          if file == state.selected_file && cast(uint)index == state.selected_rank {
+            draw_piece(win, x, y, piece, 4)
           }
-          if file == state.hovered_file && cast(c.int)index == state.hovered_rank {
+          if file == state.hovered_file && cast(uint)index == state.hovered_rank {
             draw_piece(win, x, y, state.board.piece_map[state.selected_file][state.selected_rank])
           }
           y += 8
@@ -210,7 +209,7 @@ getDefaultBoard :: proc() -> Board {
     return board
 }
 
-check_square_for_piece :: proc(file: rune, rank: c.int, colour: Colour) -> bool {
+check_square_for_piece :: proc(file: rune, rank: uint, colour: Colour) -> bool {
   if file < 'a' || file > 'h' || rank < 0 || rank > 7 {
     return false
   }
@@ -220,7 +219,7 @@ check_square_for_piece :: proc(file: rune, rank: c.int, colour: Colour) -> bool 
   return false
 }
 
-check_valid_move_or_capture :: proc(file: rune, rank: c.int) -> bool {
+check_valid_move_or_capture :: proc(file: rune, rank: uint) -> bool {
   if file < 'a' || file > 'h' || rank < 0 || rank > 7 {
     return false
   }

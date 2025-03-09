@@ -3,7 +3,6 @@ package main
 import "core:fmt"
 import "core:strconv"
 import "core:unicode/utf8"
-import "core:c"
 
 /*
 File for all of the game logic.
@@ -548,7 +547,7 @@ get_knight_moves_and_captures :: proc() {
 
 get_bishop_moves_and_captures :: proc() {
   moves_found: bool
-  increment : c.int = 1
+  increment : uint = 1
   if state.to_move == .WHITE {
     //Up-right diagonals
     if state.selected_file < 'h' && state.selected_rank < 7 {
@@ -654,6 +653,58 @@ get_bishop_moves_and_captures :: proc() {
     }
   } else {
     //Up-right diagonals
+    if state.selected_file > 'a' && state.selected_rank > 0 {
+      for !moves_found {
+        if !check_square_for_piece(state.selected_file-cast(rune)increment, state.selected_rank-increment, .WHITE) {
+          if !check_square_for_piece(state.selected_file-cast(rune)increment, state.selected_rank-increment, .BLACK) {
+            append(&state.move_option_files, state.selected_file-cast(rune)increment)
+            append(&state.move_option_ranks, state.selected_rank-increment)
+            increment += 1
+          } else {
+            moves_found = true
+          }
+        } else {
+          append(&state.capture_option_files, state.selected_file-cast(rune)increment)
+          append(&state.capture_option_ranks, state.selected_rank-increment)
+          moves_found = true
+        }
+        if state.selected_file - cast(rune)increment < 'a' {
+          moves_found = true
+        }
+        if state.selected_rank - increment < 0 {
+          moves_found = true
+        }
+      }
+    }
+    moves_found = false
+    increment = 1
+    //Down-right diagonals
+    if state.selected_file > 'a' && state.selected_rank < 7 {
+      for !moves_found {
+        if !check_square_for_piece(state.selected_file-cast(rune)increment, state.selected_rank+increment, .WHITE) {
+          if !check_square_for_piece(state.selected_file-cast(rune)increment, state.selected_rank+increment, .BLACK) {
+            append(&state.move_option_files, state.selected_file-cast(rune)increment)
+            append(&state.move_option_ranks, state.selected_rank+increment)
+            increment += 1
+          } else {
+            moves_found = true
+          }
+        } else {
+          append(&state.capture_option_files, state.selected_file-cast(rune)increment)
+          append(&state.capture_option_ranks, state.selected_rank+increment)
+          moves_found = true
+        }
+        if state.selected_file - cast(rune)increment < 'a' {
+          moves_found = true
+        }
+        if state.selected_rank + increment > 7 {
+          moves_found = true
+        }
+      }
+    }
+    moves_found = false
+    increment = 1
+    //Down-left diagonals
     if state.selected_file < 'h' && state.selected_rank < 7 {
       for !moves_found {
         if !check_square_for_piece(state.selected_file+cast(rune)increment, state.selected_rank+increment, .WHITE) {
@@ -672,14 +723,14 @@ get_bishop_moves_and_captures :: proc() {
         if state.selected_file + cast(rune)increment > 'h' {
           moves_found = true
         }
-        if state.selected_rank + increment > 7 {
+      if state.selected_rank + increment > 7 {
           moves_found = true
         }
       }
     }
     moves_found = false
     increment = 1
-    //Down-right diagonals
+    //Up-left diagonals
     if state.selected_file < 'h' && state.selected_rank > 0 {
       for !moves_found {
         if !check_square_for_piece(state.selected_file+cast(rune)increment, state.selected_rank-increment, .WHITE) {
@@ -703,64 +754,12 @@ get_bishop_moves_and_captures :: proc() {
         }
       }
     }
-    moves_found = false
-    increment = 1
-    //Down-left diagonals
-    if state.selected_file < 'a' && state.selected_rank > 0 {
-      for !moves_found {
-        if !check_square_for_piece(state.selected_file-cast(rune)increment, state.selected_rank-increment, .WHITE) {
-          if !check_square_for_piece(state.selected_file-cast(rune)increment, state.selected_rank-increment, .BLACK) {
-            append(&state.move_option_files, state.selected_file-cast(rune)increment)
-            append(&state.move_option_ranks, state.selected_rank-increment)
-            increment += 1
-          } else {
-            moves_found = true
-          }
-        } else {
-          append(&state.capture_option_files, state.selected_file-cast(rune)increment)
-          append(&state.capture_option_ranks, state.selected_rank-increment)
-          moves_found = true
-        }
-        if state.selected_file + cast(rune)increment < 'a' {
-          moves_found = true
-        }
-      if state.selected_rank + increment < 0 {
-          moves_found = true
-        }
-      }
-    }
-    moves_found = false
-    increment = 1
-    //Up-left diagonals
-    if state.selected_file > 'a' && state.selected_rank < 7 {
-      for !moves_found {
-        if !check_square_for_piece(state.selected_file-cast(rune)increment, state.selected_rank+increment, .WHITE) {
-          if !check_square_for_piece(state.selected_file-cast(rune)increment, state.selected_rank+increment, .BLACK) {
-            append(&state.move_option_files, state.selected_file-cast(rune)increment)
-            append(&state.move_option_ranks, state.selected_rank+increment)
-            increment += 1
-          } else {
-            moves_found = true
-          }
-        } else {
-          append(&state.capture_option_files, state.selected_file-cast(rune)increment)
-          append(&state.capture_option_ranks, state.selected_rank+increment)
-          moves_found = true
-        }
-        if state.selected_file + cast(rune)increment < 'a' {
-          moves_found = true
-        }
-        if state.selected_rank + increment > 7 {
-          moves_found = true
-        }
-      }
-    }
   }
 }
 
 get_rook_moves_and_captures :: proc() {
   moves_found: bool
-  increment : c.int = 1
+  increment : uint = 1
   if state.to_move == .WHITE {
     //Forward moves and captures
     if state.selected_rank < 7 {
@@ -788,20 +787,20 @@ get_rook_moves_and_captures :: proc() {
     //Right moves and captures
     if state.selected_file < 'h' {
       for !moves_found {
-        if !check_square_for_piece(cast(rune)(cast(i32)state.selected_file+increment), state.selected_rank, .BLACK) {
-          if !check_square_for_piece(cast(rune)(cast(i32)state.selected_file+increment), state.selected_rank, .WHITE) {
-            append(&state.move_option_files, cast(rune)(cast(i32)state.selected_file+increment))
+        if !check_square_for_piece(state.selected_file+cast(rune)increment, state.selected_rank, .BLACK) {
+          if !check_square_for_piece(state.selected_file+cast(rune)increment, state.selected_rank, .WHITE) {
+            append(&state.move_option_files, state.selected_file+cast(rune)increment)
             append(&state.move_option_ranks, state.selected_rank)
             increment += 1
           } else {
             moves_found = true
           }
         } else {
-          append(&state.capture_option_files, cast(rune)(cast(i32)state.selected_file+increment))
+          append(&state.capture_option_files, state.selected_file+cast(rune)increment)
           append(&state.capture_option_ranks, state.selected_rank)
           moves_found = true
         }
-        if cast(rune)(cast(i32)state.selected_file + increment) > 'h' {
+        if state.selected_file + cast(rune)increment > 'h' {
           moves_found = true
         }
       }
@@ -834,20 +833,20 @@ get_rook_moves_and_captures :: proc() {
     //Left moves and captures
     if state.selected_file > 'a' {
       for !moves_found {
-        if !check_square_for_piece(cast(rune)(cast(i32)state.selected_file-increment), state.selected_rank, .BLACK) {
-          if !check_square_for_piece(cast(rune)(cast(i32)state.selected_file-increment), state.selected_rank, .WHITE) {
-            append(&state.move_option_files, cast(rune)(cast(i32)state.selected_file-increment))
+        if !check_square_for_piece(state.selected_file-cast(rune)increment, state.selected_rank, .BLACK) {
+          if !check_square_for_piece(state.selected_file-cast(rune)increment, state.selected_rank, .WHITE) {
+            append(&state.move_option_files, state.selected_file-cast(rune)increment)
             append(&state.move_option_ranks, state.selected_rank)
             increment += 1
           } else {
             moves_found = true
           }
         } else {
-          append(&state.capture_option_files, cast(rune)(cast(i32)state.selected_file-increment))
+          append(&state.capture_option_files, state.selected_file-cast(rune)increment)
           append(&state.capture_option_ranks, state.selected_rank)
           moves_found = true
         }
-        if cast(rune)(cast(i32)state.selected_file - increment) < 'a' {
+        if state.selected_file - cast(rune)increment < 'a' {
           moves_found = true
         }
       }
@@ -879,20 +878,20 @@ get_rook_moves_and_captures :: proc() {
     //Right moves and captures
     if state.selected_file > 'a' {
       for !moves_found {
-        if !check_square_for_piece(cast(rune)(cast(i32)state.selected_file-increment), state.selected_rank, .WHITE) {
-          if !check_square_for_piece(cast(rune)(cast(i32)state.selected_file-increment), state.selected_rank, .BLACK) {
-            append(&state.move_option_files, cast(rune)(cast(i32)state.selected_file-increment))
+        if !check_square_for_piece(state.selected_file-cast(rune)increment, state.selected_rank, .WHITE) {
+          if !check_square_for_piece(state.selected_file-cast(rune)increment, state.selected_rank, .BLACK) {
+            append(&state.move_option_files, state.selected_file-cast(rune)increment)
             append(&state.move_option_ranks, state.selected_rank)
             increment += 1
           } else {
             moves_found = true
           }
         } else {
-          append(&state.capture_option_files, cast(rune)(cast(i32)state.selected_file-increment))
+          append(&state.capture_option_files, state.selected_file-cast(rune)increment)
           append(&state.capture_option_ranks, state.selected_rank)
           moves_found = true
         }
-        if cast(rune)(cast(i32)state.selected_file - increment) < 'a' {
+        if state.selected_file - cast(rune)increment < 'a' {
           moves_found = true
         }
       }
@@ -925,20 +924,20 @@ get_rook_moves_and_captures :: proc() {
     //Left moves and captures
     if state.selected_file < 'h' {
       for !moves_found {
-        if !check_square_for_piece(cast(rune)(cast(i32)state.selected_file+increment), state.selected_rank, .WHITE) {
-          if !check_square_for_piece(cast(rune)(cast(i32)state.selected_file+increment), state.selected_rank, .BLACK) {
-            append(&state.move_option_files, cast(rune)(cast(i32)state.selected_file+increment))
+        if !check_square_for_piece(state.selected_file+cast(rune)increment, state.selected_rank, .WHITE) {
+          if !check_square_for_piece(state.selected_file+cast(rune)increment, state.selected_rank, .BLACK) {
+            append(&state.move_option_files, state.selected_file+cast(rune)increment)
             append(&state.move_option_ranks, state.selected_rank)
             increment += 1
           } else {
             moves_found = true
           }
         } else {
-          append(&state.capture_option_files, cast(rune)(cast(i32)state.selected_file+increment))
+          append(&state.capture_option_files, state.selected_file+cast(rune)increment)
           append(&state.capture_option_ranks, state.selected_rank)
           moves_found = true
         }
-        if cast(rune)(cast(i32)state.selected_file + increment) > 'h' {
+        if state.selected_file + cast(rune)increment > 'h' {
           moves_found = true
         }
       }
