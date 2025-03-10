@@ -17,6 +17,7 @@ Mode :: enum {
 GameState :: struct {
   running: bool,
   move_no: u8,
+  check: bool,
   to_move: Colour,
   mode: Mode,
   board: Board,
@@ -98,6 +99,10 @@ draw_info :: proc(win: ^t.Screen) {
   
   t.move_cursor(win, y, x)
   t.write(win, fmt.tprintf("Go: %v", state.to_move))
+  y += 1
+
+  t.move_cursor(win, y, x)
+  t.write(win, fmt.tprintf("Check: %v", state.check))
   y += 1
   
   t.move_cursor(win, y, x)
@@ -217,9 +222,17 @@ handle_move_input :: proc(key: t.Key) {
       decrement_file_move()
     }
   case .Enter:
+    saved_state := state.board.piece_map
+
     if check_valid_move_or_capture(state.hovered_file, state.hovered_rank) {
+      captured_piece := state.board.piece_map[state.hovered_file][state.hovered_rank]
       state.board.piece_map[state.hovered_file][state.hovered_rank] = state.board.piece_map[state.selected_file][state.selected_rank]
       state.board.piece_map[state.selected_file][state.selected_rank] = PieceInfo{}
+      
+      if is_check() {
+        state.check = true
+      }
+
       state.mode = .SELECT
       if state.to_move == .WHITE {
         state.to_move = .BLACK
