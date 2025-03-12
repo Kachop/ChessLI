@@ -1178,7 +1178,8 @@ If any of those board states result in no check then returns false.
 If none of the available moves or captures stop the check then returns true.
 */
 is_checkmate :: proc() -> bool {
-  original_board := make(map[rune][dynamic]PieceInfo, allocator=context.temp_allocator)
+  original_board := make(map[rune][dynamic]PieceInfo)
+  defer delete(original_board)
   copy_board(&original_board, state.board.piece_map)
 
   if state.to_move == .WHITE {

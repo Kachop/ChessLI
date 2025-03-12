@@ -34,6 +34,8 @@ Move :: struct {
 }
 
 draw_board :: proc(win: ^t.Screen) {
+  old_allocator := context.allocator
+  context.allocator = context.temp_allocator
   x : uint = 2
   y : uint = 1
 
@@ -192,29 +194,33 @@ draw_board :: proc(win: ^t.Screen) {
       }
     }
   }
+  context.allocator = old_allocator
 }
 
 getDefaultBoard :: proc() -> Board {
-    board := Board{}
+  old_allocator := context.temp_allocator
+  context.temp_allocator = context.allocator
+  board := Board{}
 
-    board.tile_map['a'] = [8]PieceInfo{TILE_B, TILE_W, TILE_B, TILE_W, TILE_B, TILE_W, TILE_B, TILE_W}
-    board.tile_map['b'] = [8]PieceInfo{TILE_W, TILE_B, TILE_W, TILE_B, TILE_W, TILE_B, TILE_W, TILE_B}
-    board.tile_map['c'] = [8]PieceInfo{TILE_B, TILE_W, TILE_B, TILE_W, TILE_B, TILE_W, TILE_B, TILE_W}
-    board.tile_map['d'] = [8]PieceInfo{TILE_W, TILE_B, TILE_W, TILE_B, TILE_W, TILE_B, TILE_W, TILE_B}
-    board.tile_map['e'] = [8]PieceInfo{TILE_B, TILE_W, TILE_B, TILE_W, TILE_B, TILE_W, TILE_B, TILE_W}
-    board.tile_map['f'] = [8]PieceInfo{TILE_W, TILE_B, TILE_W, TILE_B, TILE_W, TILE_B, TILE_W, TILE_B}
-    board.tile_map['g'] = [8]PieceInfo{TILE_B, TILE_W, TILE_B, TILE_W, TILE_B, TILE_W, TILE_B, TILE_W}
-    board.tile_map['h'] = [8]PieceInfo{TILE_W, TILE_B, TILE_W, TILE_B, TILE_W, TILE_B, TILE_W, TILE_B}
+  board.tile_map['a'] = [8]PieceInfo{TILE_B, TILE_W, TILE_B, TILE_W, TILE_B, TILE_W, TILE_B, TILE_W}
+  board.tile_map['b'] = [8]PieceInfo{TILE_W, TILE_B, TILE_W, TILE_B, TILE_W, TILE_B, TILE_W, TILE_B}
+  board.tile_map['c'] = [8]PieceInfo{TILE_B, TILE_W, TILE_B, TILE_W, TILE_B, TILE_W, TILE_B, TILE_W}
+  board.tile_map['d'] = [8]PieceInfo{TILE_W, TILE_B, TILE_W, TILE_B, TILE_W, TILE_B, TILE_W, TILE_B}
+  board.tile_map['e'] = [8]PieceInfo{TILE_B, TILE_W, TILE_B, TILE_W, TILE_B, TILE_W, TILE_B, TILE_W}
+  board.tile_map['f'] = [8]PieceInfo{TILE_W, TILE_B, TILE_W, TILE_B, TILE_W, TILE_B, TILE_W, TILE_B}
+  board.tile_map['g'] = [8]PieceInfo{TILE_B, TILE_W, TILE_B, TILE_W, TILE_B, TILE_W, TILE_B, TILE_W}
+  board.tile_map['h'] = [8]PieceInfo{TILE_W, TILE_B, TILE_W, TILE_B, TILE_W, TILE_B, TILE_W, TILE_B}
 
-    board.piece_map['a'] = [dynamic]PieceInfo{ROOK_W, PAWN_W, PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}, PAWN_B, ROOK_B}
-    board.piece_map['b'] = [dynamic]PieceInfo{KNIGHT_W, PAWN_W, PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}, PAWN_B, KNIGHT_B}
-    board.piece_map['c'] = [dynamic]PieceInfo{BISHOP_W, PAWN_W, PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}, PAWN_B, BISHOP_B}
-    board.piece_map['d'] = [dynamic]PieceInfo{QUEEN_W, PAWN_W, PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}, PAWN_B, QUEEN_B}
-    board.piece_map['e'] = [dynamic]PieceInfo{KING_W, PAWN_W, PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}, PAWN_B, KING_B}
-    board.piece_map['f'] = [dynamic]PieceInfo{BISHOP_W, PAWN_W, PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}, PAWN_B, BISHOP_B}
-    board.piece_map['g'] = [dynamic]PieceInfo{KNIGHT_W, PAWN_W, PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}, PAWN_B, KNIGHT_B}
-    board.piece_map['h'] = [dynamic]PieceInfo{ROOK_W, PAWN_W, PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}, PAWN_B, ROOK_B}
-    return board
+  board.piece_map['a'] = [dynamic]PieceInfo{ROOK_W, PAWN_W, PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}, PAWN_B, ROOK_B}
+  board.piece_map['b'] = [dynamic]PieceInfo{KNIGHT_W, PAWN_W, PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}, PAWN_B, KNIGHT_B}
+  board.piece_map['c'] = [dynamic]PieceInfo{BISHOP_W, PAWN_W, PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}, PAWN_B, BISHOP_B}
+  board.piece_map['d'] = [dynamic]PieceInfo{QUEEN_W, PAWN_W, PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}, PAWN_B, QUEEN_B}
+  board.piece_map['e'] = [dynamic]PieceInfo{KING_W, PAWN_W, PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}, PAWN_B, KING_B}
+  board.piece_map['f'] = [dynamic]PieceInfo{BISHOP_W, PAWN_W, PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}, PAWN_B, BISHOP_B}
+  board.piece_map['g'] = [dynamic]PieceInfo{KNIGHT_W, PAWN_W, PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}, PAWN_B, KNIGHT_B}
+  board.piece_map['h'] = [dynamic]PieceInfo{ROOK_W, PAWN_W, PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}, PAWN_B, ROOK_B}
+  context.temp_allocator = old_allocator
+  return board
 }
 
 copy_board :: proc(copy_to: ^map[rune][dynamic]PieceInfo, copy_from: map[rune][dynamic]PieceInfo) {

@@ -67,6 +67,7 @@ main :: proc() {
   //draw_info(&s)
 
   for state.running {
+    defer free_all(context.temp_allocator)
     defer t.blit_screen(&s)
 
     t.clear_screen(&s, .Everything)
@@ -88,11 +89,9 @@ main :: proc() {
     draw_board(&s)
     //draw_info(&s)
   }
-  //t.clear_screen(&s, .Everything)
   free_all(context.temp_allocator)
   t.hide_cursor(false)
   t.set_term_mode(&s, .Restored)
-  fmt.println("Closing program")
 }
 
 draw_info :: proc(win: ^t.Screen) {
@@ -236,7 +235,8 @@ handle_move_input :: proc(key: t.Key) {
       decrement_file_move()
     }
   case .Enter:
-    saved_state := make(map[rune][dynamic]PieceInfo, allocator=context.temp_allocator)
+    saved_state := make(map[rune][dynamic]PieceInfo)
+    defer delete(saved_state)
     copy_board(&saved_state, state.board.piece_map)
 
     if !state.check {
@@ -317,7 +317,7 @@ handle_move_input :: proc(key: t.Key) {
 
         if is_check(colour = colour) {
           state.mode = .SELECT
-          state.board.piece_map = saved_state
+          copy_board(&state.board.piece_map, saved_state)
           state.hovered_file = state.selected_file
           state.hovered_rank = state.selected_rank
         } else {
