@@ -30,6 +30,10 @@ GameState :: struct {
   capture_option_files: [dynamic]rune,
   capture_option_ranks: [dynamic]uint,
   last_move: Move,
+  can_castle_white_qs: bool,
+  can_castle_white_ks: bool,
+  can_castle_black_qs: bool,
+  can_castle_black_ks: bool,
 }
 
 state := GameState{}
@@ -55,6 +59,10 @@ main :: proc() {
   state.hovered_file = 'a'
   state.move_option_files = [dynamic]rune{}
   state.move_option_ranks = [dynamic]uint{}
+  state.can_castle_white_qs = true
+  state.can_castle_white_ks = true
+  state.can_castle_black_qs = true
+  state.can_castle_black_ks = true
   
   s := t.init_screen()
   defer t.destroy_screen(&s)
@@ -248,6 +256,46 @@ handle_move_input :: proc(key: t.Key) {
             }
           }
         }
+
+        if state.board.piece_map[state.selected_file][state.selected_rank].piece == .ROOK {
+          if state.selected_file == 'a' {
+            if state.to_move == .WHITE {
+              state.can_castle_white_qs = false
+            } else {
+              state.can_castle_black_qs = false
+            }
+          } else if state.selected_file == 'h' {
+            if state.to_move == .WHITE {
+              state.can_castle_white_ks = false
+            } else {
+              state.can_castle_black_ks = false
+            }
+          }
+        }
+
+        if state.board.piece_map[state.selected_file][state.selected_rank].piece == .KING {
+          if state.to_move == .WHITE && state.can_castle_white_qs && state.hovered_file == 'c' && state.hovered_rank == 0 {
+            state.board.piece_map['d'][0] = state.board.piece_map['a'][0]
+            state.board.piece_map['a'][0] = PieceInfo{}
+          } else if state.to_move == .WHITE && state.can_castle_white_ks && state.hovered_file == 'g' && state.hovered_rank == 0 {
+            state.board.piece_map['f'][0] = state.board.piece_map['h'][0]
+            state.board.piece_map['h'][0] = PieceInfo{}
+          } else if state.to_move == .BLACK && state.can_castle_black_qs && state.hovered_file == 'c' && state.hovered_rank == 7 {
+            state.board.piece_map['d'][7] = state.board.piece_map['a'][7]
+            state.board.piece_map['a'][7] = PieceInfo{}
+          } else if state.to_move == .BLACK && state.can_castle_black_ks && state.hovered_file == 'g' && state.hovered_rank == 7 {
+            state.board.piece_map['f'][7] = state.board.piece_map['h'][7]
+            state.board.piece_map['h'][7] = PieceInfo{}
+          }
+          if state.to_move == .WHITE {
+            state.can_castle_white_qs = false
+            state.can_castle_white_ks = false
+          } else {
+            state.can_castle_black_qs = false
+            state.can_castle_black_ks = false
+          }
+        }
+
         captured_piece := state.board.piece_map[state.hovered_file][state.hovered_rank]
         state.board.piece_map[state.hovered_file][state.hovered_rank] = state.board.piece_map[state.selected_file][state.selected_rank]
         state.board.piece_map[state.selected_file][state.selected_rank] = PieceInfo{}
@@ -262,7 +310,7 @@ handle_move_input :: proc(key: t.Key) {
 
         if is_check(colour = colour) {
           state.mode = .SELECT
-          state.board.piece_map = saved_state
+          copy_board(&state.board.piece_map, saved_state)
           state.hovered_file = state.selected_file
           state.hovered_rank = state.selected_rank
         } else {
@@ -303,6 +351,30 @@ handle_move_input :: proc(key: t.Key) {
             }
           }
         }
+
+        if state.board.piece_map[state.selected_file][state.selected_rank].piece == .ROOK {
+          if state.selected_file == 'a' {
+            if state.to_move == .WHITE {
+              state.can_castle_white_qs = false
+            } else {
+              state.can_castle_black_qs = false
+            }
+          } else if state.selected_file == 'h' {
+            if state.to_move == .WHITE {
+              state.can_castle_white_ks = false
+            } else {
+              state.can_castle_black_ks = false
+            }
+          }
+        }
+
+        if state.board.piece_map[state.selected_file][state.selected_rank].piece == .KING {
+          state.can_castle_white_qs = false
+          state.can_castle_white_ks = false
+          state.can_castle_black_qs = false
+          state.can_castle_black_ks = false
+        }
+
         captured_piece := state.board.piece_map[state.hovered_file][state.hovered_rank]
         state.board.piece_map[state.hovered_file][state.hovered_rank] = state.board.piece_map[state.selected_file][state.selected_rank]
         state.board.piece_map[state.selected_file][state.selected_rank] = PieceInfo{}

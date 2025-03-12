@@ -224,12 +224,16 @@ getDefaultBoard :: proc() -> Board {
 }
 
 copy_board :: proc(copy_to: ^map[rune][dynamic]PieceInfo, copy_from: map[rune][dynamic]PieceInfo) {
+  old_allocator := context.temp_allocator
+  context.temp_allocator = context.allocator
+
   for file := 'a'; file <= 'h'; file += 1 {
     copy_to[file] = [dynamic]PieceInfo{PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}}
     for rank := 0; rank <= 7; rank += 1 {
       copy_to[file][rank] = copy_from[file][rank]
     }
   }
+  context.temp_allocator = old_allocator
 }
 
 check_square_for_piece :: proc(file: rune, rank: uint, colour: Colour) -> bool {
