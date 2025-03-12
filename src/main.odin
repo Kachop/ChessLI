@@ -64,7 +64,7 @@ main :: proc() {
   t.blit_screen(&s)
 
   draw_board(&s)
-  draw_info(&s)
+  //draw_info(&s)
 
   for state.running {
     defer t.blit_screen(&s)
@@ -86,9 +86,10 @@ main :: proc() {
     }
 
     draw_board(&s)
-    draw_info(&s)
+    //draw_info(&s)
   }
   //t.clear_screen(&s, .Everything)
+  free_all(context.temp_allocator)
   t.hide_cursor(false)
   t.set_term_mode(&s, .Restored)
   fmt.println("Closing program")
@@ -99,55 +100,55 @@ draw_info :: proc(win: ^t.Screen) {
   y : uint = 70
   
   t.move_cursor(win, y, x)
-  t.write(win, fmt.tprintf("Go: %v", state.to_move))
+  t.write(win, fmt.aprintf("Go: %v", state.to_move))
   y += 1
 
   t.move_cursor(win, y, x)
-  t.write(win, fmt.tprintf("Check: %v", state.check))
+  t.write(win, fmt.aprintf("Check: %v", state.check))
   y += 1
   
   t.move_cursor(win, y, x)
-  t.write(win, fmt.tprintf("Hover file: %v", state.hovered_file))
+  t.write(win, fmt.aprintf("Hover file: %v", state.hovered_file))
   y += 1
 
   t.move_cursor(win, y, x)
-  t.write(win, fmt.tprintf("Hover rank: %v", state.hovered_rank))
+  t.write(win, fmt.aprintf("Hover rank: %v", state.hovered_rank))
   y += 1
 
   t.move_cursor(win, y, x)
-  t.write(win, fmt.tprintf("Selected file: %v", state.selected_file))
+  t.write(win, fmt.aprintf("Selected file: %v", state.selected_file))
   y += 1
 
   t.move_cursor(win, y, x)
-  t.write(win, fmt.tprintf("Selected rank: %v", state.selected_rank))
+  t.write(win, fmt.aprintf("Selected rank: %v", state.selected_rank))
   y += 1
 
   t.move_cursor(win, y, x)
-  t.write(win, fmt.tprintf("File diff: %v", abs(cast(int)'d' - cast(int)'e')))
+  t.write(win, fmt.aprintf("File diff: %v", abs(cast(int)'d' - cast(int)'e')))
   y += 1
 
   t.move_cursor(win, y, x)
-  t.write(win, fmt.tprintf("Mode: %v", state.mode))
+  t.write(win, fmt.aprintf("Mode: %v", state.mode))
   y += 1
 
   t.move_cursor(win, y, x)
-  t.write(win, fmt.tprintf("Available moves: %v", len(state.move_option_files)))
+  t.write(win, fmt.aprintf("Available moves: %v", len(state.move_option_files)))
   y += 1
 
   t.move_cursor(win, y, x)
-  t.write(win, fmt.tprintf("Moves:"))
+  t.write(win, fmt.aprintf("Moves:"))
   y += 1
 
   for i in 0 ..< len(state.move_option_files) {
     t.move_cursor(win, y, x)
-    t.write(win, fmt.tprintf("%v%v", state.move_option_files[i], state.move_option_ranks[i]+1))
+    t.write(win, fmt.aprintf("%v%v", state.move_option_files[i], state.move_option_ranks[i]+1))
     y += 1
   }
 
   y += 1
 
   t.move_cursor(win, y, x)
-  t.write(win, fmt.tprintf("Available captures: %v", len(state.capture_option_files)))
+  t.write(win, fmt.aprintf("Available captures: %v", len(state.capture_option_files)))
   y += 1
 
   t.blit_screen(win)
@@ -235,7 +236,7 @@ handle_move_input :: proc(key: t.Key) {
       decrement_file_move()
     }
   case .Enter:
-    saved_state := make(map[rune][dynamic]PieceInfo)
+    saved_state := make(map[rune][dynamic]PieceInfo, allocator=context.temp_allocator)
     copy_board(&saved_state, state.board.piece_map)
 
     if !state.check {

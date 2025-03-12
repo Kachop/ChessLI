@@ -115,7 +115,7 @@ get_knight_moves_and_captures :: proc(file: rune = state.selected_file, rank: ui
           append(&state.capture_option_files, file+2)
           append(&state.capture_option_ranks, rank+1)
         }
-        if rank - 2 >= 0 {
+        if cast(int)rank - 2 >= 0 {
           if !check_square_for_piece(file+1, rank-2, .WHITE) && !check_square_for_piece(file+1, rank-2, .BLACK) {
             append(&state.move_option_files, file+1)
             append(&state.move_option_ranks, rank-2)
@@ -167,7 +167,7 @@ get_knight_moves_and_captures :: proc(file: rune = state.selected_file, rank: ui
           append(&state.capture_option_files, file-2)
           append(&state.capture_option_ranks, rank+1)
         }
-        if rank - 2 >= 0 {
+        if cast(int)rank - 2 >= 0 {
           if !check_square_for_piece(file-1, rank-2, .WHITE) && !check_square_for_piece(file-1, rank-2, .BLACK) {
             append(&state.move_option_files, file-1)
             append(&state.move_option_ranks, rank-2)
@@ -284,7 +284,7 @@ get_knight_moves_and_captures :: proc(file: rune = state.selected_file, rank: ui
           append(&state.capture_option_ranks, rank+1)
         }
       }
-      if rank - 2 >= 0 {
+      if cast(int)rank - 2 >= 0 {
         if !check_square_for_piece(file+1, rank-2, .WHITE) && !check_square_for_piece(file+1, rank-2, .BLACK) {
           append(&state.move_option_files, file+1)
           append(&state.move_option_ranks, rank-2)
@@ -352,7 +352,7 @@ get_knight_moves_and_captures :: proc(file: rune = state.selected_file, rank: ui
           append(&state.capture_option_files, file+2)
           append(&state.capture_option_ranks, rank+1)
         }
-        if rank - 2 >= 0 {
+        if cast(int)rank - 2 >= 0 {
           if !check_square_for_piece(file+1, rank-2, .WHITE) && !check_square_for_piece(file+1, rank-2, .BLACK) {
             append(&state.move_option_files, file+1)
             append(&state.move_option_ranks, rank-2)
@@ -404,7 +404,7 @@ get_knight_moves_and_captures :: proc(file: rune = state.selected_file, rank: ui
           append(&state.capture_option_files, file-2)
           append(&state.capture_option_ranks, rank+1)
         }
-        if rank - 2 >= 0 {
+        if cast(int)rank - 2 >= 0 {
           if !check_square_for_piece(file-1, rank-2, .WHITE) && !check_square_for_piece(file-1, rank-2, .BLACK) {
             append(&state.move_option_files, file-1)
             append(&state.move_option_ranks, rank-2)
@@ -521,7 +521,7 @@ get_knight_moves_and_captures :: proc(file: rune = state.selected_file, rank: ui
           append(&state.capture_option_ranks, rank+1)
         }
       }
-      if rank - 2 >= 0 {
+      if cast(int)rank - 2 >= 0 {
         if !check_square_for_piece(file+1, rank-2, .WHITE) && !check_square_for_piece(file+1, rank-2, .BLACK) {
           append(&state.move_option_files, file+1)
           append(&state.move_option_ranks, rank-2)
@@ -606,7 +606,7 @@ get_bishop_moves_and_captures :: proc(file: rune = state.selected_file, rank: ui
         if file + cast(rune)increment > 'h' {
           moves_found = true
         }
-        if rank - increment < 0 {
+        if cast(int)rank - cast(int)increment < 0 {
           moves_found = true
         }
       }
@@ -632,7 +632,7 @@ get_bishop_moves_and_captures :: proc(file: rune = state.selected_file, rank: ui
         if file - cast(rune)increment < 'a' {
           moves_found = true
         }
-      if rank - increment < 0 {
+      if cast(int)rank - cast(int)increment < 0 {
           moves_found = true
         }
       }
@@ -683,7 +683,7 @@ get_bishop_moves_and_captures :: proc(file: rune = state.selected_file, rank: ui
         if file - cast(rune)increment < 'a' {
           moves_found = true
         }
-        if rank - increment < 0 {
+        if cast(int)rank - cast(int)increment < 0 {
           moves_found = true
         }
       }
@@ -761,7 +761,7 @@ get_bishop_moves_and_captures :: proc(file: rune = state.selected_file, rank: ui
         if file + cast(rune)increment > 'h' {
           moves_found = true
         }
-        if rank - increment < 0 {
+        if cast(int)rank - cast(int)increment < 0 {
           moves_found = true
         }
       }
@@ -835,7 +835,7 @@ get_rook_moves_and_captures :: proc(file: rune = state.selected_file, rank: uint
           append(&state.capture_option_ranks, rank-increment)
           moves_found = true
         }
-        if rank - increment < 0 {
+        if cast(int)rank - cast(int)increment < 0 {
           moves_found = true
         }
       }
@@ -880,7 +880,7 @@ get_rook_moves_and_captures :: proc(file: rune = state.selected_file, rank: uint
           append(&state.capture_option_ranks, rank-increment)
           moves_found = true
         }
-        if rank - increment < 0 {
+        if cast(int)rank - cast(int)increment < 0 {
           moves_found = true
         }
       }
@@ -1133,7 +1133,6 @@ If one of those avaialble captures is the king then returns true. If not returns
 is_check :: proc(board: map[rune][dynamic]PieceInfo = state.board.piece_map, colour: Colour = state.to_move) -> bool {
   clear(&state.capture_option_files)
   clear(&state.capture_option_ranks)
-
   for file := 'a'; file <= 'h'; file += 1 {
     for rank: uint = 0; rank <= 7; rank += 1 {
       piece := board[file][rank]
@@ -1179,7 +1178,7 @@ If any of those board states result in no check then returns false.
 If none of the available moves or captures stop the check then returns true.
 */
 is_checkmate :: proc() -> bool {
-  original_board := make(map[rune][dynamic]PieceInfo)
+  original_board := make(map[rune][dynamic]PieceInfo, allocator=context.temp_allocator)
   copy_board(&original_board, state.board.piece_map)
 
   if state.to_move == .WHITE {
@@ -1213,12 +1212,6 @@ is_checkmate :: proc() -> bool {
             state.board.piece_map[state.move_option_files[i]][state.move_option_ranks[i]] = piece
             state.board.piece_map[file][rank] = PieceInfo{}
 
-            if state.move_option_files[i] == 'd' && state.move_option_ranks[i] == 6 {
-              for {
-                fmt.println("BLOCKING SQUARE: ", len(state.move_option_files))
-              }
-            }
-            
             old_move_files: [dynamic]rune
             old_move_ranks: [dynamic]uint
             old_capture_files: [dynamic]rune
