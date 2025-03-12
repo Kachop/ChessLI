@@ -19,8 +19,8 @@ files_str :: files_str_set{'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'}
 ranks_str :: ranks_str_set{'1', '2', '3', '4', '5', '6', '7', '8'}
 ranks_num :: ranks_num_set{1, 2, 3, 4, 5, 6, 7, 8}
 
-get_pawn_moves_and_captures :: proc(file: rune = state.selected_file, rank: uint = state.selected_rank) {
-  if state.to_move == .WHITE {
+get_pawn_moves_and_captures :: proc(file: rune = state.selected_file, rank: uint = state.selected_rank, colour: Colour = state.to_move) {
+  if colour == .WHITE {
     if rank != 7 && rank != 0 {
       if !check_square_for_piece(file, rank+1, .BLACK) && !check_square_for_piece(file, rank+1, .WHITE) {
         append(&state.move_option_files, file)
@@ -67,8 +67,8 @@ get_pawn_moves_and_captures :: proc(file: rune = state.selected_file, rank: uint
   }
 }
 
-get_knight_moves_and_captures :: proc(file: rune = state.selected_file, rank: uint = state.selected_rank) {
-  if state.to_move == .WHITE {
+get_knight_moves_and_captures :: proc(file: rune = state.selected_file, rank: uint = state.selected_rank, colour: Colour = state.to_move) {
+  if colour == .WHITE {
     if file == 'a' {
       if rank == 0 {
         if !check_square_for_piece(file+1, rank+2, .WHITE) && !check_square_for_piece(file+1, rank+2, .BLACK) {
@@ -545,10 +545,10 @@ get_knight_moves_and_captures :: proc(file: rune = state.selected_file, rank: ui
   }
 }
 
-get_bishop_moves_and_captures :: proc(file: rune = state.selected_file, rank: uint = state.selected_rank) {
+get_bishop_moves_and_captures :: proc(file: rune = state.selected_file, rank: uint = state.selected_rank, colour: Colour = state.to_move) {
   moves_found: bool
   increment : uint = 1
-  if state.to_move == .WHITE {
+  if colour == .WHITE {
     //Up-right diagonals
     if file < 'h' && rank < 7 {
       for !moves_found {
@@ -602,7 +602,7 @@ get_bishop_moves_and_captures :: proc(file: rune = state.selected_file, rank: ui
     moves_found = false
     increment = 1
     //Down-left diagonals
-    if file < 'a' && rank > 0 {
+    if file > 'a' && rank > 0 {
       for !moves_found {
         if !check_square_for_piece(file-cast(rune)increment, rank-increment, .BLACK) {
           if !check_square_for_piece(file-cast(rune)increment, rank-increment, .WHITE) {
@@ -617,10 +617,10 @@ get_bishop_moves_and_captures :: proc(file: rune = state.selected_file, rank: ui
           append(&state.capture_option_ranks, rank-increment)
           moves_found = true
         }
-        if file + cast(rune)increment < 'a' {
+        if file - cast(rune)increment < 'a' {
           moves_found = true
         }
-      if rank + increment < 0 {
+      if rank - increment < 0 {
           moves_found = true
         }
       }
@@ -643,7 +643,7 @@ get_bishop_moves_and_captures :: proc(file: rune = state.selected_file, rank: ui
           append(&state.capture_option_ranks, rank+increment)
           moves_found = true
         }
-        if file + cast(rune)increment < 'a' {
+        if file - cast(rune)increment < 'a' {
           moves_found = true
         }
         if rank + increment > 7 {
@@ -757,10 +757,10 @@ get_bishop_moves_and_captures :: proc(file: rune = state.selected_file, rank: ui
   }
 }
 
-get_rook_moves_and_captures :: proc(file: rune = state.selected_file, rank: uint = state.selected_rank) {
+get_rook_moves_and_captures :: proc(file: rune = state.selected_file, rank: uint = state.selected_rank, colour: Colour = state.to_move) {
   moves_found: bool
   increment : uint = 1
-  if state.to_move == .WHITE {
+  if colour == .WHITE {
     //Forward moves and captures
     if rank < 7 {
       for !moves_found {
@@ -945,8 +945,8 @@ get_rook_moves_and_captures :: proc(file: rune = state.selected_file, rank: uint
   }
 }
 
-get_king_moves_and_captures :: proc(file: rune = state.selected_file, rank: uint = state.selected_rank) {
-  if state.to_move == .WHITE {
+get_king_moves_and_captures :: proc(file: rune = state.selected_file, rank: uint = state.selected_rank, colour: Colour = state.to_move) {
+  if colour == .WHITE {
     if file < 'h' {
       //Top Right
       if rank < 7 {
@@ -1112,48 +1112,216 @@ get_king_moves_and_captures :: proc(file: rune = state.selected_file, rank: uint
   }
 }
 
-is_check :: proc(board: map[rune][dynamic]PieceInfo = state.board.piece_map) -> bool {
-  //Checks the current board (or a given one) for check_square_for_piece
-  //Checks after enter is pressed. Check piece on given board at hover location
+/*
+Checks a given board state (current board state by default) and for a given colour pieces if the opposing king is in check
+Loops through all of the pieces of a given colour and accumulates all of the available captures.
+If one of those avaialble captures is the king then returns true. If not returns false
+*/
 
-  old_move_files := state.move_option_files
-  old_move_ranks := state.move_option_ranks
-  old_capture_files := state.capture_option_files
-  old_capture_ranks := state.capture_option_ranks
-
-  clear(&state.move_option_files)
-  clear(&state.move_option_ranks)
+is_check :: proc(board: map[rune][dynamic]PieceInfo = state.board.piece_map, colour: Colour = state.to_move) -> bool {
   clear(&state.capture_option_files)
   clear(&state.capture_option_ranks)
 
-  piece := board[state.hovered_file][state.hovered_rank]
+  for file := 'a'; file <= 'h'; file += 1 {
+    for rank: uint = 0; rank <= 7; rank += 1 {
+      piece := board[file][rank]
 
-  #partial switch piece.piece {
-  case .PAWN:
-    get_pawn_moves_and_captures(state.hovered_file, state.hovered_rank)
-  case .KNIGHT:
-    get_knight_moves_and_captures(state.hovered_file, state.hovered_rank)
-  case .BISHOP:
-    get_bishop_moves_and_captures(state.hovered_file, state.hovered_rank)
-  case .ROOK:
-    get_rook_moves_and_captures(state.hovered_file, state.hovered_rank)
-  case .QUEEN:
-    get_bishop_moves_and_captures(state.hovered_file, state.hovered_rank)
-    get_rook_moves_and_captures(state.hovered_file, state.hovered_rank)
+      if piece.colour == colour {
+        #partial switch piece.piece {
+        case .PAWN:
+          get_pawn_moves_and_captures(file, rank, colour)
+        case .KNIGHT:
+          get_knight_moves_and_captures(file, rank, colour)
+        case .BISHOP:
+          get_bishop_moves_and_captures(file, rank, colour)
+        case .ROOK:
+          get_rook_moves_and_captures(file, rank, colour)
+        case .QUEEN:
+          get_bishop_moves_and_captures(file, rank, colour)
+          get_rook_moves_and_captures(file, rank, colour)
+        }
+      }
+    }
   }
+
+  clear(&state.move_option_files)
+  clear(&state.move_option_ranks)
   
   for i in 0 ..< len(state.capture_option_files) {
     if board[state.capture_option_files[i]][state.capture_option_ranks[i]].piece == .KING {
-      clear(&state.move_option_files)
-      clear(&state.move_option_ranks)
-      get_king_moves_and_captures(state.capture_option_files[i], state.capture_option_ranks[i])
+      clear(&state.capture_option_files)
+      clear(&state.capture_option_ranks)
       return true
     }
   }
-  state.move_option_files, state.move_option_ranks = old_move_files, old_move_ranks
-  state.capture_option_files, state.capture_option_ranks = old_capture_files, old_capture_ranks
+  clear(&state.capture_option_files)
+  clear(&state.capture_option_ranks)
   return false
 }
 
-is_checkmate :: proc() {
+/*
+Checks if the current board state is checkmate.
+
+Loops through all possible moves and captures of the checked player.
+If any of those board states result in no check then returns false.
+If none of the available moves or captures stop the check then returns true.
+*/
+is_checkmate :: proc() -> bool {
+  original_board := make(map[rune][dynamic]PieceInfo)
+  copy_board(&original_board, state.board.piece_map)
+
+  if state.to_move == .WHITE {
+    state.to_move = .BLACK
+    for file := 'a'; file <= 'h'; file += 1 {
+      for rank : uint = 0; rank <= 7; rank += 1 {
+        piece := state.board.piece_map[file][rank]
+        if piece.colour == .BLACK {
+          clear(&state.move_option_files)
+          clear(&state.move_option_ranks)
+          clear(&state.capture_option_files)
+          clear(&state.capture_option_ranks)
+
+          #partial switch piece.piece {
+          case .PAWN:
+            get_pawn_moves_and_captures(file, rank)
+          case .KNIGHT:
+            get_knight_moves_and_captures(file, rank)
+          case .BISHOP:
+            get_bishop_moves_and_captures(file, rank)
+          case .ROOK:
+            get_rook_moves_and_captures(file, rank)
+          case .QUEEN:
+            get_bishop_moves_and_captures(file, rank)
+            get_rook_moves_and_captures(file, rank)
+          case.KING:
+            get_king_moves_and_captures(file, rank)
+          }
+
+          for i in 0 ..< len(state.move_option_files) {
+            state.board.piece_map[state.move_option_files[i]][state.move_option_ranks[i]] = piece
+            state.board.piece_map[file][rank] = PieceInfo{}
+            
+            old_move_files: [dynamic]rune
+            old_move_ranks: [dynamic]uint
+            old_capture_files: [dynamic]rune
+            old_capture_ranks: [dynamic]uint
+            copy(old_move_files[:], state.move_option_files[:]) 
+            copy(old_move_ranks[:], state.move_option_ranks[:])
+            copy(old_capture_files[:], state.capture_option_files[:])
+            copy(old_capture_ranks[:], state.capture_option_ranks[:])
+
+            if !is_check(colour = .WHITE) {
+              state.to_move = .WHITE
+              copy_board(&state.board.piece_map, original_board)
+              return false
+            }
+            copy_board(&state.board.piece_map, original_board)
+            state.move_option_files, state.move_option_ranks = old_move_files, old_move_ranks
+            state.capture_option_files, state.capture_option_ranks = old_capture_files, old_capture_ranks
+          }
+
+          for i in 0 ..< len(state.capture_option_files) {
+            state.board.piece_map[state.capture_option_files[i]][state.capture_option_ranks[i]] = piece
+            state.board.piece_map[file][rank] = PieceInfo{}
+            
+            old_move_files: [dynamic]rune
+            old_move_ranks: [dynamic]uint
+            old_capture_files: [dynamic]rune
+            old_capture_ranks: [dynamic]uint
+            copy(old_move_files[:], state.move_option_files[:]) 
+            copy(old_move_ranks[:], state.move_option_ranks[:])
+            copy(old_capture_files[:], state.capture_option_files[:])
+            copy(old_capture_ranks[:], state.capture_option_ranks[:])
+
+            if !is_check(colour = .WHITE) { 
+              state.to_move = .WHITE
+              copy_board(&state.board.piece_map, original_board)
+              return false
+            }
+            copy_board(&state.board.piece_map, original_board)
+            state.move_option_files, state.move_option_ranks = old_move_files, old_move_ranks
+            state.capture_option_files, state.capture_option_ranks = old_capture_files, old_capture_ranks
+          }
+        }
+      }
+    }
+    state.to_move = .WHITE
+  } else {
+    state.to_move = .WHITE
+    for file := 'a'; file <= 'h'; file += 1 {
+      for rank : uint = 0; rank <= 7; rank += 1 {
+        piece := state.board.piece_map[file][rank]
+        if piece.colour == .WHITE {
+          clear(&state.move_option_files)
+          clear(&state.move_option_ranks)
+          clear(&state.capture_option_files)
+          clear(&state.capture_option_ranks)
+
+          #partial switch piece.piece {
+          case .PAWN:
+            get_pawn_moves_and_captures(file, rank)
+          case .KNIGHT:
+            get_knight_moves_and_captures(file, rank)
+          case .BISHOP:
+            get_bishop_moves_and_captures(file, rank)
+          case .ROOK:
+            get_rook_moves_and_captures(file, rank)
+          case .QUEEN:
+            get_bishop_moves_and_captures(file, rank)
+            get_rook_moves_and_captures(file, rank)
+          case.KING:
+            get_king_moves_and_captures(file, rank)
+          }
+
+          for i in 0 ..< len(state.move_option_files) {
+            state.board.piece_map[state.move_option_files[i]][state.move_option_ranks[i]] = piece
+            state.board.piece_map[file][rank] = PieceInfo{}
+            
+            old_move_files: [dynamic]rune
+            old_move_ranks: [dynamic]uint
+            old_capture_files: [dynamic]rune
+            old_capture_ranks: [dynamic]uint
+            copy(old_move_files[:], state.move_option_files[:]) 
+            copy(old_move_ranks[:], state.move_option_ranks[:])
+            copy(old_capture_files[:], state.capture_option_files[:])
+            copy(old_capture_ranks[:], state.capture_option_ranks[:])
+            
+            if !is_check(colour = .BLACK) {
+              state.to_move = .BLACK
+              copy_board(&state.board.piece_map, original_board)
+              return false
+            }
+            copy_board(&state.board.piece_map, original_board)
+            state.move_option_files, state.move_option_ranks = old_move_files, old_move_ranks
+            state.capture_option_files, state.capture_option_ranks = old_capture_files, old_capture_ranks
+          }
+
+          for i in 0 ..< len(state.capture_option_files) {
+            state.board.piece_map[state.capture_option_files[i]][state.capture_option_ranks[i]] = piece
+            state.board.piece_map[file][rank] = PieceInfo{}
+            
+            old_move_files: [dynamic]rune
+            old_move_ranks: [dynamic]uint
+            old_capture_files: [dynamic]rune
+            old_capture_ranks: [dynamic]uint
+            copy(old_move_files[:], state.move_option_files[:]) 
+            copy(old_move_ranks[:], state.move_option_ranks[:])
+            copy(old_capture_files[:], state.capture_option_files[:])
+            copy(old_capture_ranks[:], state.capture_option_ranks[:])
+
+            if !is_check(colour = .BLACK) {
+              state.to_move = .BLACK
+              copy_board(&state.board.piece_map, original_board)
+              return false
+            }
+            copy_board(&state.board.piece_map, original_board)
+            state.move_option_files, state.move_option_ranks = old_move_files, old_move_ranks
+            state.capture_option_files, state.capture_option_ranks = old_capture_files, old_capture_ranks
+          }
+        }
+      }
+    }
+    state.to_move = .BLACK
+  }
+  return true
 }

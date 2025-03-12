@@ -209,6 +209,15 @@ getDefaultBoard :: proc() -> Board {
     return board
 }
 
+copy_board :: proc(copy_to: ^map[rune][dynamic]PieceInfo, copy_from: map[rune][dynamic]PieceInfo) {
+  for file := 'a'; file <= 'h'; file += 1 {
+    copy_to[file] = [dynamic]PieceInfo{PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}}
+    for rank := 0; rank <= 7; rank += 1 {
+      copy_to[file][rank] = copy_from[file][rank]
+    }
+  }
+}
+
 check_square_for_piece :: proc(file: rune, rank: uint, colour: Colour) -> bool {
   if file < 'a' || file > 'h' || rank < 0 || rank > 7 {
     return false
