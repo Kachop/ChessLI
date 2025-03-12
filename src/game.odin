@@ -42,6 +42,12 @@ get_pawn_moves_and_captures :: proc(file: rune = state.selected_file, rank: uint
       append(&state.capture_option_files, file+1)
       append(&state.capture_option_ranks, rank+1)
     }
+    if state.last_move.piece == .PAWN && abs(cast(int)state.last_move.end_file - cast(int)file) == 1 {
+      if state.last_move.start_rank == 6 && state.last_move.end_rank == 4 && rank == 4 {
+        append(&state.capture_option_files, state.last_move.end_file)
+        append(&state.capture_option_ranks, rank+1)
+      }
+    }
   } else {
     if rank != 7 && rank != 0 {
       if !check_square_for_piece(file, rank-1, .BLACK) && !check_square_for_piece(file, rank-1, .WHITE) {
@@ -63,6 +69,12 @@ get_pawn_moves_and_captures :: proc(file: rune = state.selected_file, rank: uint
     if check_square_for_piece(file+1, rank-1, .WHITE) {
       append(&state.capture_option_files, file+1)
       append(&state.capture_option_ranks, rank-1)
+    }
+    if state.last_move.piece == .PAWN && abs(cast(int)state.last_move.end_file - cast(int)file) == 1 {
+      if state.last_move.start_rank == 1 && state.last_move.end_rank == 3 && rank == 3 {
+        append(&state.capture_option_files, state.last_move.end_file)
+        append(&state.capture_option_ranks, rank-1)
+      }
     }
   }
 }
@@ -1200,6 +1212,12 @@ is_checkmate :: proc() -> bool {
           for i in 0 ..< len(state.move_option_files) {
             state.board.piece_map[state.move_option_files[i]][state.move_option_ranks[i]] = piece
             state.board.piece_map[file][rank] = PieceInfo{}
+
+            if state.move_option_files[i] == 'd' && state.move_option_ranks[i] == 6 {
+              for {
+                fmt.println("BLOCKING SQUARE: ", len(state.move_option_files))
+              }
+            }
             
             old_move_files: [dynamic]rune
             old_move_ranks: [dynamic]uint
@@ -1216,8 +1234,10 @@ is_checkmate :: proc() -> bool {
               return false
             }
             copy_board(&state.board.piece_map, original_board)
-            state.move_option_files, state.move_option_ranks = old_move_files, old_move_ranks
-            state.capture_option_files, state.capture_option_ranks = old_capture_files, old_capture_ranks
+            copy(state.move_option_files[:], old_move_files[:])
+            copy(state.move_option_ranks[:], old_move_ranks[:])
+            copy(state.capture_option_files[:], old_capture_files[:])
+            copy(state.capture_option_ranks[:], old_capture_ranks[:])
           }
 
           for i in 0 ..< len(state.capture_option_files) {
@@ -1239,8 +1259,11 @@ is_checkmate :: proc() -> bool {
               return false
             }
             copy_board(&state.board.piece_map, original_board)
-            state.move_option_files, state.move_option_ranks = old_move_files, old_move_ranks
-            state.capture_option_files, state.capture_option_ranks = old_capture_files, old_capture_ranks
+            copy(state.move_option_files[:], old_move_files[:])
+            copy(state.move_option_ranks[:], old_move_ranks[:])
+            copy(state.capture_option_files[:], old_capture_files[:])
+            copy(state.capture_option_ranks[:], old_capture_ranks[:])
+
           }
         }
       }
@@ -1292,8 +1315,11 @@ is_checkmate :: proc() -> bool {
               return false
             }
             copy_board(&state.board.piece_map, original_board)
-            state.move_option_files, state.move_option_ranks = old_move_files, old_move_ranks
-            state.capture_option_files, state.capture_option_ranks = old_capture_files, old_capture_ranks
+            copy(state.move_option_files[:], old_move_files[:])
+            copy(state.move_option_ranks[:], old_move_ranks[:])
+            copy(state.capture_option_files[:], old_capture_files[:])
+            copy(state.capture_option_ranks[:], old_capture_ranks[:])
+
           }
 
           for i in 0 ..< len(state.capture_option_files) {
@@ -1315,8 +1341,11 @@ is_checkmate :: proc() -> bool {
               return false
             }
             copy_board(&state.board.piece_map, original_board)
-            state.move_option_files, state.move_option_ranks = old_move_files, old_move_ranks
-            state.capture_option_files, state.capture_option_ranks = old_capture_files, old_capture_ranks
+            copy(state.move_option_files[:], old_move_files[:])
+            copy(state.move_option_ranks[:], old_move_ranks[:])
+            copy(state.capture_option_files[:], old_capture_files[:])
+            copy(state.capture_option_ranks[:], old_capture_ranks[:])
+
           }
         }
       }

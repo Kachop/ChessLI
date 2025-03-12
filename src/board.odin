@@ -25,6 +25,14 @@ Board :: struct {
     piece_map: map[rune][dynamic]PieceInfo,
 }
 
+Move :: struct {
+  piece: Piece,
+  start_file: rune,
+  end_file: rune,
+  start_rank: uint,
+  end_rank: uint,
+}
+
 draw_board :: proc(win: ^t.Screen) {
   x : uint = 2
   y : uint = 1

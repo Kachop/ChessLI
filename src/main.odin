@@ -29,6 +29,7 @@ GameState :: struct {
   move_option_ranks: [dynamic]uint,
   capture_option_files: [dynamic]rune,
   capture_option_ranks: [dynamic]uint,
+  last_move: Move,
 }
 
 state := GameState{}
@@ -111,6 +112,18 @@ draw_info :: proc(win: ^t.Screen) {
 
   t.move_cursor(win, y, x)
   t.write(win, fmt.tprintf("Hover rank: %v", state.hovered_rank))
+  y += 1
+
+  t.move_cursor(win, y, x)
+  t.write(win, fmt.tprintf("Selected file: %v", state.selected_file))
+  y += 1
+
+  t.move_cursor(win, y, x)
+  t.write(win, fmt.tprintf("Selected rank: %v", state.selected_rank))
+  y += 1
+
+  t.move_cursor(win, y, x)
+  t.write(win, fmt.tprintf("File diff: %v", abs(cast(int)'d' - cast(int)'e')))
   y += 1
 
   t.move_cursor(win, y, x)
@@ -227,32 +240,68 @@ handle_move_input :: proc(key: t.Key) {
 
     if !state.check {
       if check_valid_move_or_capture(state.hovered_file, state.hovered_rank) {
+        if state.board.piece_map[state.selected_file][state.selected_rank].piece == .PAWN {
+          if abs(cast(int)state.selected_file - cast(int)state.hovered_file) == 1 && abs(cast(int)state.selected_rank - cast(int)state.hovered_rank) == 1 {
+            if !check_square_for_piece(state.hovered_file, state.hovered_rank, .WHITE) && !check_square_for_piece(state.hovered_file, state.hovered_rank, .BLACK) {
+              state.board.piece_map[state.hovered_file][state.hovered_rank-1 if (state.to_move == .WHITE) else state.hovered_rank+1] = PieceInfo{}
+            }
+          }
+        }
         captured_piece := state.board.piece_map[state.hovered_file][state.hovered_rank]
         state.board.piece_map[state.hovered_file][state.hovered_rank] = state.board.piece_map[state.selected_file][state.selected_rank]
         state.board.piece_map[state.selected_file][state.selected_rank] = PieceInfo{}
-      
-        if is_check() {
-          state.check = true
-          if is_checkmate() {
-            state.running = false
-          }
+
+        colour: Colour
+
+        if state.to_move == .WHITE {
+          colour = .BLACK
+        } else {
+          colour = .WHITE
         }
 
-        state.mode = .SELECT
-        if state.to_move == .WHITE {
-          state.to_move = .BLACK
+        if is_check(colour = colour) {
+          state.mode = .SELECT
+          state.board.piece_map = saved_state
+          state.hovered_file = state.selected_file
+          state.hovered_rank = state.selected_rank
         } else {
-          state.to_move = .WHITE
-          state.move_no += 1
-        }
-        temp_file, temp_rank := find_closest_piece('a', 'h', 0, 7, state.to_move)
-        if temp_file != -1 {
-          state.hovered_file = temp_file
-          state.hovered_rank = temp_rank
+          state.last_move = Move{
+            state.board.piece_map[state.hovered_file][state.hovered_rank].piece,
+            state.selected_file,
+            state.hovered_file,
+            state.selected_rank,
+            state.hovered_rank,
+          }
+          if is_check() {
+            state.check = true
+            if is_checkmate() {
+              state.running = false
+            }
+          }
+
+          state.mode = .SELECT
+          if state.to_move == .WHITE {
+            state.to_move = .BLACK
+          } else {
+            state.to_move = .WHITE
+            state.move_no += 1
+          }
+          temp_file, temp_rank := find_closest_piece('a', 'h', 0, 7, state.to_move)
+          if temp_file != -1 {
+            state.hovered_file = temp_file
+            state.hovered_rank = temp_rank
+          }
         }
       }
     } else {
       if check_valid_move_or_capture(state.hovered_file, state.hovered_rank) {
+        if state.board.piece_map[state.selected_file][state.selected_rank].piece == .PAWN {
+          if abs(cast(int)state.selected_file - cast(int)state.hovered_file) == 1 && abs(cast(int)state.selected_rank - cast(int)state.hovered_rank) == 1 {
+            if !check_square_for_piece(state.hovered_file, state.hovered_rank, .WHITE) && !check_square_for_piece(state.hovered_file, state.hovered_rank, .BLACK) {
+              state.board.piece_map[state.hovered_file][state.hovered_rank-1 if (state.to_move == .WHITE) else state.hovered_rank+1] = PieceInfo{}
+            }
+          }
+        }
         captured_piece := state.board.piece_map[state.hovered_file][state.hovered_rank]
         state.board.piece_map[state.hovered_file][state.hovered_rank] = state.board.piece_map[state.selected_file][state.selected_rank]
         state.board.piece_map[state.selected_file][state.selected_rank] = PieceInfo{}
@@ -271,8 +320,24 @@ handle_move_input :: proc(key: t.Key) {
           state.hovered_file = state.selected_file
           state.hovered_rank = state.selected_rank
         } else {
+          state.last_move = Move{
+            state.board.piece_map[state.hovered_file][state.hovered_rank].piece,
+            state.selected_file,
+            state.hovered_file,
+            state.selected_rank,
+            state.hovered_rank,
+          }
+
           state.check = false
           state.mode = .SELECT
+          
+          if is_check() {
+            state.check = true
+            if is_checkmate() {
+              state.running = false
+            }
+          }
+
           if state.to_move == .WHITE {
             state.to_move = .BLACK
           } else {
