@@ -11,6 +11,15 @@ WHITE_BACKGROUND :: "00"
 BLACK_PIECE :: "||"
 BLACK_BACKGROUND :: "  "
 
+TILE_MAP :: [64]u8{0, 1, 0, 1, 0, 1, 0, 1,
+  1, 0, 1, 0, 1, 0, 1, 0,
+  0, 1, 0, 1, 0, 1, 0, 1,
+  1, 0, 1, 0, 1, 0, 1, 0,
+  0, 1, 0, 1, 0, 1, 0, 1,
+  1, 0, 1, 0, 1, 0, 1, 0,
+  0, 1, 0, 1, 0, 1, 0, 1,
+  1, 0, 1, 0, 1, 0, 1, 0}
+
 TILE_IMG :: [64]u8{0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
@@ -73,6 +82,21 @@ KING_IMG :: [64]u8{0, 0, 0, 0, 0, 0, 0, 0,
   0, 1, 1, 1, 1, 1, 1, 0,
   0, 0, 1, 1, 1, 1, 0, 0,
   0, 1, 1, 1, 1, 1, 1, 0}
+
+PieceType :: enum {
+  PAWN_W,
+  KNIGHT_W,
+  BISHOP_W,
+  ROOK_W,
+  QUEEN_W,
+  KING_W,
+  PAWN_B,
+  KNIGHT_B,
+  BISHOP_B,
+  ROOK_B,
+  QUEEN_B,
+  KING_B,
+}
 
 Piece :: enum {
   NONE,

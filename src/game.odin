@@ -18,7 +18,7 @@ ranks_num_set :: bit_set[1..=8]
 files_str :: files_str_set{'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'}
 ranks_str :: ranks_str_set{'1', '2', '3', '4', '5', '6', '7', '8'}
 ranks_num :: ranks_num_set{1, 2, 3, 4, 5, 6, 7, 8}
-
+/*
 get_pawn_moves_and_captures :: proc(file: rune = state.selected_file, rank: uint = state.selected_rank, colour: Colour = state.to_move) {
   if colour == .WHITE {
     if rank != 7 && rank != 0 {
@@ -1042,8 +1042,21 @@ get_king_moves_and_captures :: proc(file: rune = state.selected_file, rank: uint
     if file == 'e' && rank == 0 && state.can_castle_white_ks {
       if !check_square_for_piece('f', 0, .WHITE) && !check_square_for_piece('f', 0, .BLACK) {
         if !check_square_for_piece('g', 0, .WHITE) && !check_square_for_piece('g', 0, .BLACK) {
-          append(&state.move_option_files, 'g')
-          append(&state.move_option_ranks, 0)
+          temp_board := make(map[rune][dynamic]PieceInfo)
+          defer delete(temp_board)
+          copy_board(&temp_board, state.board.piece_map)
+
+          state.board.piece_map['f'][0] = state.board.piece_map['e'][0]
+          state.board.piece_map['e'][0] = PieceInfo{}
+          if !is_check(colour = .WHITE) {
+            state.board.piece_map['g'][0] = state.board.piece_map['f'][0]
+            state.board.piece_map['f'][0] = PieceInfo{}
+            if !is_check(colour = .WHITE) {
+              append(&state.move_option_files, 'g')
+              append(&state.move_option_ranks, 0)
+            }
+          }
+          copy_board(&state.board.piece_map, temp_board)
         }
       }
     }
@@ -1051,8 +1064,22 @@ get_king_moves_and_captures :: proc(file: rune = state.selected_file, rank: uint
       if !check_square_for_piece('d', 0, .WHITE) && !check_square_for_piece('d', 0, .BLACK) {
         if !check_square_for_piece('c', 0, .WHITE) && !check_square_for_piece('c', 0, .BLACK) {
           if !check_square_for_piece('b', 0, .WHITE) && !check_square_for_piece('b', 0, .BLACK) {
-            append(&state.move_option_files, 'c')
-            append(&state.move_option_ranks, 0)
+            temp_board := make(map[rune][dynamic]PieceInfo)
+            defer delete(temp_board)
+            copy_board(&temp_board, state.board.piece_map)
+
+            state.board.piece_map['d'][0] = state.board.piece_map['e'][0]
+            state.board.piece_map['e'][0] = PieceInfo{}
+            if !is_check(colour = .WHITE) {
+              state.board.piece_map['c'][0] = state.board.piece_map['d'][0]
+              state.board.piece_map['d'][0] = PieceInfo{}
+              if !is_check(colour = .WHITE) {
+                append(&state.move_option_files, 'c')
+                append(&state.move_option_ranks, 0)
+              }
+            }
+            copy_board(&state.board.piece_map, temp_board)
+
           }
         }
       } 
@@ -1141,8 +1168,21 @@ get_king_moves_and_captures :: proc(file: rune = state.selected_file, rank: uint
     if file == 'e' && rank == 7 && state.can_castle_black_ks {
       if !check_square_for_piece('f', 7, .WHITE) && !check_square_for_piece('f', 7, .BLACK) {
         if !check_square_for_piece('g', 7, .WHITE) && !check_square_for_piece('g', 7, .BLACK) {
-          append(&state.move_option_files, 'g')
-          append(&state.move_option_ranks, 7)
+          temp_board := make(map[rune][dynamic]PieceInfo)
+          defer delete(temp_board)
+          copy_board(&temp_board, state.board.piece_map)
+
+          state.board.piece_map['f'][7] = state.board.piece_map['e'][7]
+          state.board.piece_map['e'][7] = PieceInfo{}
+          if !is_check(colour = .WHITE) {
+            state.board.piece_map['g'][7] = state.board.piece_map['f'][7]
+            state.board.piece_map['f'][7] = PieceInfo{}
+            if !is_check(colour = .WHITE) {
+              append(&state.move_option_files, 'g')
+              append(&state.move_option_ranks, 7)
+            }
+          }
+          copy_board(&state.board.piece_map, temp_board)
         }
       }
     }
@@ -1150,8 +1190,21 @@ get_king_moves_and_captures :: proc(file: rune = state.selected_file, rank: uint
       if !check_square_for_piece('d', 7, .WHITE) && !check_square_for_piece('d', 7, .BLACK) {
         if !check_square_for_piece('c', 7, .WHITE) && !check_square_for_piece('c', 7, .BLACK) {
           if !check_square_for_piece('b', 7, .WHITE) && !check_square_for_piece('b', 7, .BLACK) {
-            append(&state.move_option_files, 'c')
-            append(&state.move_option_ranks, 7)
+            temp_board := make(map[rune][dynamic]PieceInfo)
+            defer delete(temp_board)
+            copy_board(&temp_board, state.board.piece_map)
+
+            state.board.piece_map['d'][7] = state.board.piece_map['e'][7]
+            state.board.piece_map['e'][7] = PieceInfo{}
+            if !is_check(colour = .WHITE) {
+              state.board.piece_map['c'][7] = state.board.piece_map['d'][7]
+              state.board.piece_map['d'][7] = PieceInfo{}
+              if !is_check(colour = .WHITE) {
+                append(&state.move_option_files, 'c')
+                append(&state.move_option_ranks, 7)
+              }
+            }
+            copy_board(&state.board.piece_map, temp_board)
           }
         }
       } 
@@ -1383,3 +1436,4 @@ is_checkmate :: proc() -> bool {
   }
   return true
 }
+*/
