@@ -18,1197 +18,253 @@ ranks_num_set :: bit_set[1..=8]
 files_str :: files_str_set{'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'}
 ranks_str :: ranks_str_set{'1', '2', '3', '4', '5', '6', '7', '8'}
 ranks_num :: ranks_num_set{1, 2, 3, 4, 5, 6, 7, 8}
+
 /*
-get_pawn_moves_and_captures :: proc(file: rune = state.selected_file, rank: uint = state.selected_rank, colour: Colour = state.to_move) {
-  if colour == .WHITE {
-    if rank != 7 && rank != 0 {
-      if !check_square_for_piece(file, rank+1, .BLACK) && !check_square_for_piece(file, rank+1, .WHITE) {
-        append(&state.move_option_files, file)
-        append(&state.move_option_ranks, rank+1)
-      }
-      if rank == 1 {
-        //If pawn has not yet moved
-        if !check_square_for_piece(file, rank+2, .BLACK) && !check_square_for_piece(file, rank+2, .WHITE) {
-          append(&state.move_option_files, file)
-          append(&state.move_option_ranks, rank+2)
-        }
-      }
+Returns all combined positions of the white pieces
+*/
+
+get_white_pieces :: proc() -> u64 {
+  positions: u64 = 0
+  positions |= state.board.piece_map[PAWN_W]
+  positions |= state.board.piece_map[KNIGHT_W]
+  positions |= state.board.piece_map[BISHOP_W]
+  positions |= state.board.piece_map[ROOK_W]
+  positions |= state.board.piece_map[QUEEN_W]
+  positions |= state.board.piece_map[KING_W]
+  return positions
+}
+
+/*
+Returns all combined positions of the black pieces
+*/
+
+get_black_pieces :: proc() -> u64 {
+  positions: u64 = 0
+  positions |= state.board.piece_map[PAWN_B]
+  positions |= state.board.piece_map[KNIGHT_B]
+  positions |= state.board.piece_map[BISHOP_B]
+  positions |= state.board.piece_map[ROOK_B]
+  positions |= state.board.piece_map[QUEEN_B]
+  positions |= state.board.piece_map[KING_B]
+  return positions
+}
+
+get_empty_squares :: proc() -> u64 {
+  positions: u64 = 0
+  positions |= (~get_white_pieces() & (~get_black_pieces()))
+  return positions
+}
+
+/*
+Based on the currently selected piece find possible moves and captures.
+All available moves pre-calculated. This narrows down the moves and finds the captures.
+*/
+get_pawn_moves_and_captures :: proc() {
+  if state.to_move == .WHITE {
+    if get_empty_squares() & (state.selected_square >> 8) != 0 {
+      state.move_options |= PAWN_MOVES_W[square_to_index(state.selected_square)] & get_empty_squares()
     }
-    if check_square_for_piece(file-1, rank+1, .BLACK) {
-      append(&state.capture_option_files, file-1)
-      append(&state.capture_option_ranks, rank+1)
-    }
-    if check_square_for_piece(file+1, rank+1, .BLACK) {
-      append(&state.capture_option_files, file+1)
-      append(&state.capture_option_ranks, rank+1)
-    }
-    if state.last_move.piece == .PAWN && abs(cast(int)state.last_move.end_file - cast(int)file) == 1 {
-      if state.last_move.start_rank == 6 && state.last_move.end_rank == 4 && rank == 4 {
-        append(&state.capture_option_files, state.last_move.end_file)
-        append(&state.capture_option_ranks, rank+1)
-      }
-    }
+    black_pieces := get_black_pieces()
+    state.capture_options |= black_pieces & (state.selected_square >> 9)
+    state.capture_options |= black_pieces & (state.selected_square >> 7)
   } else {
-    if rank != 7 && rank != 0 {
-      if !check_square_for_piece(file, rank-1, .BLACK) && !check_square_for_piece(file, rank-1, .WHITE) {
-        append(&state.move_option_files, file)
-        append(&state.move_option_ranks, rank-1)
-      }
-      if rank == 6 {
-        //If pawn has not yet moved
-        if !check_square_for_piece(file, rank-2, .BLACK) && !check_square_for_piece(file, rank-2, .WHITE) {
-          append(&state.move_option_files, file)
-          append(&state.move_option_ranks, rank-2)
-        }
-      }
+    if get_empty_squares() & (state.selected_square << 8) != 0 {
+      state.move_options |= PAWN_MOVES_B[square_to_index(state.selected_square)] & get_empty_squares()
     }
-    if check_square_for_piece(file-1, rank-1, .WHITE) {
-      append(&state.capture_option_files, file-1)
-      append(&state.capture_option_ranks, rank-1)
+    white_pieces := get_white_pieces()
+    state.capture_options |= white_pieces & (state.selected_square << 9)
+    state.capture_options |= white_pieces & (state.selected_square << 7)
+  }
+}
+
+get_knight_moves_and_captures :: proc() {
+  state.move_options |= KNIGHT_MOVES[square_to_index(state.selected_square)] & get_empty_squares()
+  if state.to_move == .WHITE {
+    state.capture_options |= KNIGHT_MOVES[square_to_index(state.selected_square)] & get_black_pieces()
+  } else {
+    state.capture_options |= KNIGHT_MOVES[square_to_index(state.selected_square)] & get_white_pieces()
+  }
+}
+
+get_bishop_moves_and_captures :: proc() {
+  blocked_UL: bool
+  blocked_UR: bool
+  blocked_DR: bool
+  blocked_DL: bool
+
+  state.move_options |= BISHOP_MOVES[square_to_index(state.selected_square)] & get_empty_squares()
+  if state.to_move == .WHITE {
+    state.capture_options |= BISHOP_MOVES[square_to_index(state.selected_square)] & get_black_pieces()
+  } else {
+    state.capture_options |= BISHOP_MOVES[square_to_index(state.selected_square)] & get_white_pieces()
+  }
+  for i in 1 ..< 8 {
+    if blocked_UL {
+      state.move_options ~= (state.selected_square >> (9 * cast(u8)i) & state.move_options)
+      state.capture_options ~= (state.selected_square >> (9 * cast(u8)i) & state.capture_options)
     }
-    if check_square_for_piece(file+1, rank-1, .WHITE) {
-      append(&state.capture_option_files, file+1)
-      append(&state.capture_option_ranks, rank-1)
+    if blocked_UR {
+      state.move_options ~= (state.selected_square >> (7 * cast(u8)i) & state.move_options)
+      state.capture_options ~= (state.selected_square >> (7 * cast(u8)i) & state.capture_options)
     }
-    if state.last_move.piece == .PAWN && abs(cast(int)state.last_move.end_file - cast(int)file) == 1 {
-      if state.last_move.start_rank == 1 && state.last_move.end_rank == 3 && rank == 3 {
-        append(&state.capture_option_files, state.last_move.end_file)
-        append(&state.capture_option_ranks, rank-1)
-      }
+    if blocked_DR {
+      state.move_options ~= (state.selected_square << (9 * cast(u8)i) & state.move_options)
+      state.capture_options ~= (state.selected_square << (9 * cast(u8)i) & state.capture_options)
+    }
+    if blocked_DL {
+      state.move_options ~= (state.selected_square << (7 * cast(u8)i) & state.move_options)
+      state.capture_options ~= (state.selected_square << (7 * cast(u8)i) & state.capture_options)
+    }
+
+    if state.move_options & (state.selected_square >> (9 * cast(u8)i)) == 0 {
+      blocked_UL = true
+    }
+    if state.move_options & (state.selected_square >> (7 * cast(u8)i)) == 0 {
+      blocked_UR = true
+    }
+    if state.move_options & (state.selected_square << (9 * cast(u8)i)) == 0 {
+      blocked_DR = true
+    }
+    if state.move_options & (state.selected_square << (7 * cast(u8)i)) == 0 {
+      blocked_DL = true
     }
   }
 }
 
-get_knight_moves_and_captures :: proc(file: rune = state.selected_file, rank: uint = state.selected_rank, colour: Colour = state.to_move) {
-  if colour == .WHITE {
-    if file == 'a' {
-      if rank == 0 {
-        if !check_square_for_piece(file+1, rank+2, .WHITE) && !check_square_for_piece(file+1, rank+2, .BLACK) {
-          append(&state.move_option_files, file+1)
-          append(&state.move_option_ranks, rank+2)
-        } else if check_square_for_piece(file+1, rank+2, .BLACK) {
-          append(&state.capture_option_files, file+1)
-          append(&state.capture_option_ranks, rank+2)
-        }
-      } else if rank == 7 {
-        if !check_square_for_piece(file+1, rank-2, .WHITE) && !check_square_for_piece(file+1, rank-2, .BLACK) {
-          append(&state.move_option_files, file+1)
-          append(&state.move_option_ranks, rank-2)
-        } else if check_square_for_piece(file+1, rank-2, .BLACK) {
-          append(&state.capture_option_files, file+1)
-          append(&state.capture_option_ranks, rank-2)
-        }
-      } else {
-        if rank + 2 <= 7 {
-          if !check_square_for_piece(file+1, rank+2, .WHITE) && !check_square_for_piece(file+1, rank+2, .BLACK) {
-            append(&state.move_option_files, file+1)
-            append(&state.move_option_ranks, rank+2)
-          } else if check_square_for_piece(file+1, rank+2, .BLACK) {
-            append(&state.capture_option_files, file+1)
-            append(&state.capture_option_ranks, rank+2)
-          }
-        }
-        if !check_square_for_piece(file+2, rank+1, .WHITE) && !check_square_for_piece(file+2, rank+1, .BLACK) {
-          append(&state.move_option_files, file+2)
-          append(&state.move_option_ranks, rank+1)
-        } else if check_square_for_piece(file+2, rank+1, .BLACK) {
-          append(&state.capture_option_files, file+2)
-          append(&state.capture_option_ranks, rank+1)
-        }
-        if cast(int)rank - 2 >= 0 {
-          if !check_square_for_piece(file+1, rank-2, .WHITE) && !check_square_for_piece(file+1, rank-2, .BLACK) {
-            append(&state.move_option_files, file+1)
-            append(&state.move_option_ranks, rank-2)
-          } else if check_square_for_piece(file+1, rank-2, .BLACK) {
-            append(&state.capture_option_files, file+1)
-            append(&state.capture_option_ranks, rank-2)
-          }
-        }
-        if !check_square_for_piece(file+2, rank-1, .WHITE) && !check_square_for_piece(file+2, rank-1, .BLACK) {
-          append(&state.move_option_files, file+2)
-          append(&state.move_option_ranks, rank-1)
-        } else if check_square_for_piece(file+2, rank-1, .BLACK) {
-          append(&state.capture_option_files, file+2)
-          append(&state.capture_option_ranks, rank-1)
-        }
-      }
-    } else if file == 'h' {
-      if rank == 0 {
-        if !check_square_for_piece(file-1, rank+2, .WHITE) && !check_square_for_piece(file-1, rank+2, .BLACK) {
-          append(&state.move_option_files, file-1)
-          append(&state.move_option_ranks, rank+2)
-        } else if check_square_for_piece(file-1, rank+2, .BLACK) {
-          append(&state.capture_option_files, file-1)
-          append(&state.capture_option_ranks, rank+2)
-        }
+get_rook_moves_and_captures :: proc() {
+  blocked_U: bool
+  blocked_R: bool
+  blocked_D: bool
+  blocked_L: bool
 
-      } else if rank == 7 {
-        if !check_square_for_piece(file-1, rank-2, .WHITE) && !check_square_for_piece(file-1, rank-2, .BLACK) {
-          append(&state.move_option_files, file-1)
-          append(&state.move_option_ranks, rank-2)
-        } else if check_square_for_piece(file-1, rank-2, .BLACK) {
-          append(&state.capture_option_files, file-1)
-          append(&state.capture_option_ranks, rank-2)
-        }
-      } else {
-        if rank + 2 <= 7 {
-          if !check_square_for_piece(file-1, rank+2, .WHITE) && !check_square_for_piece(file-1, rank+2, .BLACK) {
-            append(&state.move_option_files, file-1)
-            append(&state.move_option_ranks, rank+2)
-          } else if check_square_for_piece(file-1, rank+2, .BLACK) {
-            append(&state.capture_option_files, file-1)
-            append(&state.capture_option_ranks, rank+2)
-          }
-        }
-        if !check_square_for_piece(file-2, rank+1, .WHITE) && !check_square_for_piece(file-2, rank+1, .BLACK) {
-          append(&state.move_option_files, file-2)
-          append(&state.move_option_ranks, rank+1)
-        } else if check_square_for_piece(file-2, rank+1, .BLACK) {
-          append(&state.capture_option_files, file-2)
-          append(&state.capture_option_ranks, rank+1)
-        }
-        if cast(int)rank - 2 >= 0 {
-          if !check_square_for_piece(file-1, rank-2, .WHITE) && !check_square_for_piece(file-1, rank-2, .BLACK) {
-            append(&state.move_option_files, file-1)
-            append(&state.move_option_ranks, rank-2)
-          } else if check_square_for_piece(file-1, rank-2, .BLACK) {
-            append(&state.capture_option_files, file-1)
-            append(&state.capture_option_ranks, rank-2)
-          }
-        }
-        if !check_square_for_piece(file-2, rank-1, .WHITE) && !check_square_for_piece(file-2, rank-1, .BLACK) {
-          append(&state.move_option_files, file-2)
-          append(&state.move_option_ranks, rank-1)
-        } else if check_square_for_piece(file-2, rank-1, .BLACK) {
-          append(&state.capture_option_files, file-2)
-          append(&state.capture_option_ranks, rank-1)
-        }
-      }
-    } else if rank == 0 {
-      if file - 2 >= 'a' {
-        if !check_square_for_piece(file-2, rank+1, .WHITE) && !check_square_for_piece(file-2, rank+1, .BLACK) {
-          append(&state.move_option_files, file-2)
-          append(&state.move_option_ranks, rank+1)
-        } else if check_square_for_piece(file-2, rank+1, .BLACK) {
-          append(&state.capture_option_files, file-2)
-          append(&state.capture_option_ranks, rank+1)
-        }
-      }
-      if !check_square_for_piece(file-1, rank+2, .WHITE) && !check_square_for_piece(file-1, rank+2, .BLACK) {
-        append(&state.move_option_files, file-1)
-        append(&state.move_option_ranks, rank+2)
-      } else if check_square_for_piece(file-1, rank+2, .BLACK) {
-        append(&state.capture_option_files, file-1)
-        append(&state.capture_option_ranks, rank+2)
-      }
-      if file + 2 <= 'h' {
-        if !check_square_for_piece(file+2, rank+1, .WHITE) && !check_square_for_piece(file+2, rank+1, .BLACK) {
-          append(&state.move_option_files, file+2)
-          append(&state.move_option_ranks, rank+1)
-        } else if check_square_for_piece(file+2, rank+1, .BLACK) {
-          append(&state.capture_option_files, file+2)
-          append(&state.capture_option_ranks, rank+1)
-        }
-      }
-      if !check_square_for_piece(file+1, rank+2, .WHITE) && !check_square_for_piece(file+1, rank+2, .BLACK) {
-        append(&state.move_option_files, file+1)
-        append(&state.move_option_ranks, rank+2)
-      } else if check_square_for_piece(file+1, rank+2, .BLACK) {
-        append(&state.capture_option_files, file+1)
-        append(&state.capture_option_ranks, rank+2)
-      }
-    } else if rank == 7 {
-      if file - 2 >= 'a' {
-        if !check_square_for_piece(file-2, rank-1, .WHITE) && !check_square_for_piece(file-2, rank-1, .BLACK) {
-          append(&state.move_option_files, file-2)
-          append(&state.move_option_ranks, rank-1)
-        } else if check_square_for_piece(file-2, rank-1, .BLACK) {
-          append(&state.capture_option_files, file-2)
-          append(&state.capture_option_ranks, rank-1)
-        }
-      }
-      if !check_square_for_piece(file-1, rank-2, .WHITE) && !check_square_for_piece(file-1, rank-2, .BLACK) {
-        append(&state.move_option_files, file-1)
-        append(&state.move_option_ranks, rank-2)
-      } else if check_square_for_piece(file-1, rank-2, .BLACK) {
-        append(&state.capture_option_files, file-1)
-        append(&state.capture_option_ranks, rank-2)
-      }
-      if file + 2 <= 'h' {
-        if !check_square_for_piece(file+2, rank-1, .WHITE) && !check_square_for_piece(file+2, rank-1, .BLACK) {
-          append(&state.move_option_files, file+2)
-          append(&state.move_option_ranks, rank-1)
-        } else if check_square_for_piece(file+2, rank-1, .BLACK) {
-          append(&state.capture_option_files, file+2)
-          append(&state.capture_option_ranks, rank-1)
-        }
-      }
-      if !check_square_for_piece(file+1, rank-2, .WHITE) && !check_square_for_piece(file+1, rank-2, .BLACK) {
-        append(&state.move_option_files, file+1)
-        append(&state.move_option_ranks, rank-2)
-      } else if check_square_for_piece(file+1, rank-2, .BLACK) {
-        append(&state.capture_option_files, file+1)
-        append(&state.capture_option_ranks, rank-2)
-      }
-    } else {
-      //Not in a, h, 0 or 7
-      if file - 2 >= 'a' {
-        if !check_square_for_piece(file-2, rank-1, .WHITE) && !check_square_for_piece(file-2, rank-1, .BLACK) {
-          append(&state.move_option_files, file-2)
-          append(&state.move_option_ranks, rank-1)
-        } else if check_square_for_piece(file-2, rank-1, .BLACK) {
-          append(&state.capture_option_files, file-2)
-          append(&state.capture_option_ranks, rank-1)
-        }
-        if !check_square_for_piece(file-2, rank+1, .WHITE) && !check_square_for_piece(file-2, rank+1, .BLACK) {
-          append(&state.move_option_files, file-2)
-          append(&state.move_option_ranks, rank+1)
-        } else if check_square_for_piece(file-2, rank+1, .BLACK) {
-          append(&state.capture_option_files, file-2)
-          append(&state.capture_option_ranks, rank+1)
-        }
-      }
-      if file + 2 <= 'h' {
-        if !check_square_for_piece(file+2, rank-1, .WHITE) && !check_square_for_piece(file+2, rank-1, .BLACK) {
-          append(&state.move_option_files, file+2)
-          append(&state.move_option_ranks, rank-1)
-        } else if check_square_for_piece(file+2, rank-1, .BLACK) {
-          append(&state.capture_option_files, file+2)
-          append(&state.capture_option_ranks, rank-1)
-        }
-        if !check_square_for_piece(file+2, rank+1, .WHITE) && !check_square_for_piece(file+2, rank+1, .BLACK) {
-          append(&state.move_option_files, file+2)
-          append(&state.move_option_ranks, rank+1)
-        } else if check_square_for_piece(file+2, rank+1, .BLACK) {
-          append(&state.capture_option_files, file+2)
-          append(&state.capture_option_ranks, rank+1)
-        }
-      }
-      if cast(int)rank - 2 >= 0 {
-        if !check_square_for_piece(file+1, rank-2, .WHITE) && !check_square_for_piece(file+1, rank-2, .BLACK) {
-          append(&state.move_option_files, file+1)
-          append(&state.move_option_ranks, rank-2)
-        } else if check_square_for_piece(file+1, rank-2, .BLACK) {
-          append(&state.capture_option_files, file+1)
-          append(&state.capture_option_ranks, rank-2)
-        }
-        if !check_square_for_piece(file-1, rank-2, .WHITE) && !check_square_for_piece(file-1, rank-2, .BLACK) {
-          append(&state.move_option_files, file-1)
-          append(&state.move_option_ranks, rank-2)
-        } else if check_square_for_piece(file-1, rank-2, .BLACK) {
-          append(&state.capture_option_files, file-1)
-          append(&state.capture_option_ranks, rank-2)
-        }
-      }
-      if rank + 2 <= 7 {
-        if !check_square_for_piece(file+1, rank+2, .WHITE) && !check_square_for_piece(file+1, rank+2, .BLACK) {
-          append(&state.move_option_files, file+1)
-          append(&state.move_option_ranks, rank+2)
-        } else if check_square_for_piece(file+1, rank+2, .BLACK) {
-          append(&state.capture_option_files, file+1)
-          append(&state.capture_option_ranks, rank+2)
-        }
-        if !check_square_for_piece(file-1, rank+2, .WHITE) && !check_square_for_piece(file-1, rank+2, .BLACK) {
-          append(&state.move_option_files, file-1)
-          append(&state.move_option_ranks, rank+2)
-        } else if check_square_for_piece(file-1, rank+2, .BLACK) {
-          append(&state.capture_option_files, file-1)
-          append(&state.capture_option_ranks, rank+2)
-        }
-      }
-    }
+  state.move_options |= ROOK_MOVES[square_to_index(state.selected_square)] & get_empty_squares()
+  if state.to_move == .WHITE {
+    state.capture_options |= ROOK_MOVES[square_to_index(state.selected_square)] & get_black_pieces()
   } else {
-    if file == 'a' {
-      if rank == 0 {
-        if !check_square_for_piece(file+1, rank+2, .WHITE) && !check_square_for_piece(file+1, rank+2, .BLACK) {
-          append(&state.move_option_files, file+1)
-          append(&state.move_option_ranks, rank+2)
-        } else if check_square_for_piece(file+1, rank+2, .WHITE) {
-          append(&state.capture_option_files, file+1)
-          append(&state.capture_option_ranks, rank+2)
-        }
-      } else if rank == 7 {
-        if !check_square_for_piece(file+1, rank-2, .WHITE) && !check_square_for_piece(file+1, rank-2, .BLACK) {
-          append(&state.move_option_files, file+1)
-          append(&state.move_option_ranks, rank-2)
-        } else if check_square_for_piece(file+1, rank-2, .WHITE) {
-          append(&state.capture_option_files, file+1)
-          append(&state.capture_option_ranks, rank-2)
-        }
-      } else {
-        if rank + 2 <= 7 {
-          if !check_square_for_piece(file+1, rank+2, .WHITE) && !check_square_for_piece(file+1, rank+2, .BLACK) {
-            append(&state.move_option_files, file+1)
-            append(&state.move_option_ranks, rank+2)
-          } else if check_square_for_piece(file+1, rank+2, .WHITE) {
-            append(&state.capture_option_files, file+1)
-            append(&state.capture_option_ranks, rank+2)
-          }
-        }
-        if !check_square_for_piece(file+2, rank+1, .WHITE) && !check_square_for_piece(file+2, rank+1, .BLACK) {
-          append(&state.move_option_files, file+2)
-          append(&state.move_option_ranks, rank+1)
-        } else if check_square_for_piece(file+2, rank+1, .WHITE) {
-          append(&state.capture_option_files, file+2)
-          append(&state.capture_option_ranks, rank+1)
-        }
-        if cast(int)rank - 2 >= 0 {
-          if !check_square_for_piece(file+1, rank-2, .WHITE) && !check_square_for_piece(file+1, rank-2, .BLACK) {
-            append(&state.move_option_files, file+1)
-            append(&state.move_option_ranks, rank-2)
-          } else if check_square_for_piece(file+1, rank-2, .WHITE) {
-            append(&state.capture_option_files, file+1)
-            append(&state.capture_option_ranks, rank-2)
-          }
-        }
-        if !check_square_for_piece(file+2, rank-1, .WHITE) && !check_square_for_piece(file+2, rank-1, .BLACK) {
-          append(&state.move_option_files, file+2)
-          append(&state.move_option_ranks, rank-1)
-        } else if check_square_for_piece(file+2, rank-1, .WHITE) {
-          append(&state.capture_option_files, file+2)
-          append(&state.capture_option_ranks, rank-1)
-        }
-      }
-    } else if file == 'h' {
-      if rank == 0 {
-        if !check_square_for_piece(file-1, rank+2, .WHITE) && !check_square_for_piece(file-1, rank+2, .BLACK) {
-          append(&state.move_option_files, file-1)
-          append(&state.move_option_ranks, rank+2)
-        } else if check_square_for_piece(file-1, rank+2, .WHITE) {
-          append(&state.capture_option_files, file-1)
-          append(&state.capture_option_ranks, rank+2)
-        }
+    state.capture_options |= ROOK_MOVES[square_to_index(state.selected_square)] & get_white_pieces()
+  }
+  for i in 1 ..< 8 {
+    if blocked_U {
+      state.move_options ~= (state.selected_square >> (8 * cast(u8)i) & state.move_options)
+      state.capture_options ~= (state.selected_square >> (8 * cast(u8)i) & state.capture_options)
+    }
+    if blocked_R {
+      state.move_options ~= (state.selected_square >> cast(u8)i & state.move_options)
+      state.capture_options ~= (state.selected_square >> cast(u8)i & state.capture_options)
+    }
+    if blocked_D {
+      state.move_options ~= (state.selected_square << (8 * cast(u8)i) & state.move_options)
+      state.capture_options ~= (state.selected_square << (8 * cast(u8)i) & state.capture_options)
+    }
+    if blocked_L {
+      state.move_options ~= (state.selected_square << cast(u8)i & state.move_options)
+      state.capture_options ~= (state.selected_square << cast(u8)i & state.capture_options)
+    }
 
-      } else if rank == 7 {
-        if !check_square_for_piece(file-1, rank-2, .WHITE) && !check_square_for_piece(file-1, rank-2, .BLACK) {
-          append(&state.move_option_files, file-1)
-          append(&state.move_option_ranks, rank-2)
-        } else if check_square_for_piece(file-1, rank-2, .WHITE) {
-          append(&state.capture_option_files, file-1)
-          append(&state.capture_option_ranks, rank-2)
-        }
-      } else {
-        if rank + 2 <= 7 {
-          if !check_square_for_piece(file-1, rank+2, .WHITE) && !check_square_for_piece(file-1, rank+2, .BLACK) {
-            append(&state.move_option_files, file-1)
-            append(&state.move_option_ranks, rank+2)
-          } else if check_square_for_piece(file-1, rank+2, .WHITE) {
-            append(&state.capture_option_files, file-1)
-            append(&state.capture_option_ranks, rank+2)
-          }
-        }
-        if !check_square_for_piece(file-2, rank+1, .WHITE) && !check_square_for_piece(file-2, rank+1, .BLACK) {
-          append(&state.move_option_files, file-2)
-          append(&state.move_option_ranks, rank+1)
-        } else if check_square_for_piece(file-2, rank+1, .WHITE) {
-          append(&state.capture_option_files, file-2)
-          append(&state.capture_option_ranks, rank+1)
-        }
-        if cast(int)rank - 2 >= 0 {
-          if !check_square_for_piece(file-1, rank-2, .WHITE) && !check_square_for_piece(file-1, rank-2, .BLACK) {
-            append(&state.move_option_files, file-1)
-            append(&state.move_option_ranks, rank-2)
-          } else if check_square_for_piece(file-1, rank-2, .WHITE) {
-            append(&state.capture_option_files, file-1)
-            append(&state.capture_option_ranks, rank-2)
-          }
-        }
-        if !check_square_for_piece(file-2, rank-1, .WHITE) && !check_square_for_piece(file-2, rank-1, .BLACK) {
-          append(&state.move_option_files, file-2)
-          append(&state.move_option_ranks, rank-1)
-        } else if check_square_for_piece(file-2, rank-1, .WHITE) {
-          append(&state.capture_option_files, file-2)
-          append(&state.capture_option_ranks, rank-1)
-        }
-      }
-    } else if rank == 0 {
-      if file - 2 >= 'a' {
-        if !check_square_for_piece(file-2, rank+1, .WHITE) && !check_square_for_piece(file-2, rank+1, .BLACK) {
-          append(&state.move_option_files, file-2)
-          append(&state.move_option_ranks, rank+1)
-        } else if check_square_for_piece(file-2, rank+1, .WHITE) {
-          append(&state.capture_option_files, file-2)
-          append(&state.capture_option_ranks, rank+1)
-        }
-      }
-      if !check_square_for_piece(file-1, rank+2, .WHITE) && !check_square_for_piece(file-1, rank+2, .BLACK) {
-        append(&state.move_option_files, file-1)
-        append(&state.move_option_ranks, rank+2)
-      } else if check_square_for_piece(file-1, rank+2, .WHITE) {
-        append(&state.capture_option_files, file-1)
-        append(&state.capture_option_ranks, rank+2)
-      }
-      if file + 2 <= 'h' {
-        if !check_square_for_piece(file+2, rank+1, .WHITE) && !check_square_for_piece(file+2, rank+1, .BLACK) {
-          append(&state.move_option_files, file+2)
-          append(&state.move_option_ranks, rank+1)
-        } else if check_square_for_piece(file+2, rank+1, .WHITE) {
-          append(&state.capture_option_files, file+2)
-          append(&state.capture_option_ranks, rank+1)
-        }
-      }
-      if !check_square_for_piece(file+1, rank+2, .WHITE) && !check_square_for_piece(file+1, rank+2, .BLACK) {
-        append(&state.move_option_files, file+1)
-        append(&state.move_option_ranks, rank+2)
-      } else if check_square_for_piece(file+1, rank+2, .WHITE) {
-        append(&state.capture_option_files, file+1)
-        append(&state.capture_option_ranks, rank+2)
-      }
-    } else if rank == 7 {
-      if file - 2 >= 'a' {
-        if !check_square_for_piece(file-2, rank-1, .WHITE) && !check_square_for_piece(file-2, rank-1, .BLACK) {
-          append(&state.move_option_files, file-2)
-          append(&state.move_option_ranks, rank-1)
-        } else if check_square_for_piece(file-2, rank-1, .WHITE) {
-          append(&state.capture_option_files, file-2)
-          append(&state.capture_option_ranks, rank-1)
-        }
-      }
-      if !check_square_for_piece(file-1, rank-2, .WHITE) && !check_square_for_piece(file-1, rank-2, .BLACK) {
-        append(&state.move_option_files, file-1)
-        append(&state.move_option_ranks, rank-2)
-      } else if check_square_for_piece(file-1, rank-2, .WHITE) {
-        append(&state.capture_option_files, file-1)
-        append(&state.capture_option_ranks, rank-2)
-      }
-      if file + 2 <= 'h' {
-        if !check_square_for_piece(file+2, rank-1, .WHITE) && !check_square_for_piece(file+2, rank-1, .BLACK) {
-          append(&state.move_option_files, file+2)
-          append(&state.move_option_ranks, rank-1)
-        } else if check_square_for_piece(file+2, rank-1, .WHITE) {
-          append(&state.capture_option_files, file+2)
-          append(&state.capture_option_ranks, rank-1)
-        }
-      }
-      if !check_square_for_piece(file+1, rank-2, .WHITE) && !check_square_for_piece(file+1, rank-2, .BLACK) {
-        append(&state.move_option_files, file+1)
-        append(&state.move_option_ranks, rank-2)
-      } else if check_square_for_piece(file+1, rank-2, .WHITE) {
-        append(&state.capture_option_files, file+1)
-        append(&state.capture_option_ranks, rank-2)
-      }
-    } else {
-      //Not in a, h, 0 or 7
-      if file - 2 >= 'a' {
-        if !check_square_for_piece(file-2, rank-1, .WHITE) && !check_square_for_piece(file-2, rank-1, .BLACK) {
-          append(&state.move_option_files, file-2)
-          append(&state.move_option_ranks, rank-1)
-        } else if check_square_for_piece(file-2, rank-1, .WHITE) {
-          append(&state.capture_option_files, file-2)
-          append(&state.capture_option_ranks, rank-1)
-        }
-        if !check_square_for_piece(file-2, rank+1, .WHITE) && !check_square_for_piece(file-2, rank+1, .BLACK) {
-          append(&state.move_option_files, file-2)
-          append(&state.move_option_ranks, rank+1)
-        } else if check_square_for_piece(file-2, rank+1, .WHITE) {
-          append(&state.capture_option_files, file-2)
-          append(&state.capture_option_ranks, rank+1)
-        }
-      }
-      if file + 2 <= 'h' {
-        if !check_square_for_piece(file+2, rank-1, .WHITE) && !check_square_for_piece(file+2, rank-1, .BLACK) {
-          append(&state.move_option_files, file+2)
-          append(&state.move_option_ranks, rank-1)
-        } else if check_square_for_piece(file+2, rank-1, .WHITE) {
-          append(&state.capture_option_files, file+2)
-          append(&state.capture_option_ranks, rank-1)
-        }
-        if !check_square_for_piece(file+2, rank+1, .WHITE) && !check_square_for_piece(file+2, rank+1, .BLACK) {
-          append(&state.move_option_files, file+2)
-          append(&state.move_option_ranks, rank+1)
-        } else if check_square_for_piece(file+2, rank+1, .WHITE) {
-          append(&state.capture_option_files, file+2)
-          append(&state.capture_option_ranks, rank+1)
-        }
-      }
-      if cast(int)rank - 2 >= 0 {
-        if !check_square_for_piece(file+1, rank-2, .WHITE) && !check_square_for_piece(file+1, rank-2, .BLACK) {
-          append(&state.move_option_files, file+1)
-          append(&state.move_option_ranks, rank-2)
-        } else if check_square_for_piece(file+1, rank-2, .WHITE) {
-          append(&state.capture_option_files, file+1)
-          append(&state.capture_option_ranks, rank-2)
-        }
-        if !check_square_for_piece(file-1, rank-2, .WHITE) && !check_square_for_piece(file-1, rank-2, .BLACK) {
-          append(&state.move_option_files, file-1)
-          append(&state.move_option_ranks, rank-2)
-        } else if check_square_for_piece(file-1, rank-2, .WHITE) {
-          append(&state.capture_option_files, file-1)
-          append(&state.capture_option_ranks, rank-2)
-        }
-      }
-      if rank + 2 <= 7 {
-        if !check_square_for_piece(file+1, rank+2, .WHITE) && !check_square_for_piece(file+1, rank+2, .BLACK) {
-          append(&state.move_option_files, file+1)
-          append(&state.move_option_ranks, rank+2)
-        } else if check_square_for_piece(file+1, rank+2, .WHITE) {
-          append(&state.capture_option_files, file+1)
-          append(&state.capture_option_ranks, rank+2)
-        }
-        if !check_square_for_piece(file-1, rank+2, .WHITE) && !check_square_for_piece(file-1, rank+2, .BLACK) {
-          append(&state.move_option_files, file-1)
-          append(&state.move_option_ranks, rank+2)
-        } else if check_square_for_piece(file-1, rank+2, .WHITE) {
-          append(&state.capture_option_files, file-1)
-          append(&state.capture_option_ranks, rank+2)
-        }
-      }
+    if state.move_options & (state.selected_square >> (8 * cast(u8)i)) == 0 {
+      blocked_U = true
+    }
+    if state.move_options & (state.selected_square >> cast(u8)i) == 0 {
+      blocked_R = true
+    }
+    if state.move_options & (state.selected_square << (8 * cast(u8)i)) == 0 {
+      blocked_D = true
+    }
+    if state.move_options & (state.selected_square << cast(u8)i) == 0 {
+      blocked_L = true
     }
   }
 }
 
-get_bishop_moves_and_captures :: proc(file: rune = state.selected_file, rank: uint = state.selected_rank, colour: Colour = state.to_move) {
-  moves_found: bool
-  increment : uint = 1
-  if colour == .WHITE {
-    //Up-right diagonals
-    if file < 'h' && rank < 7 {
-      for !moves_found {
-        if !check_square_for_piece(file+cast(rune)increment, rank+increment, .BLACK) {
-          if !check_square_for_piece(file+cast(rune)increment, rank+increment, .WHITE) {
-            append(&state.move_option_files, file+cast(rune)increment)
-            append(&state.move_option_ranks, rank+increment)
-            increment += 1
-          } else {
-            moves_found = true
-          }
-        } else {
-          append(&state.capture_option_files, file+cast(rune)increment)
-          append(&state.capture_option_ranks, rank+increment)
-          moves_found = true
-        }
-        if file + cast(rune)increment > 'h' {
-          moves_found = true
-        }
-        if rank + increment > 7 {
-          moves_found = true
-        }
-      }
-    }
-    moves_found = false
-    increment = 1
-    //Down-right diagonals
-    if file < 'h' && rank > 0 {
-      for !moves_found {
-        if !check_square_for_piece(file+cast(rune)increment, rank-increment, .BLACK) {
-          if !check_square_for_piece(file+cast(rune)increment, rank-increment, .WHITE) {
-            append(&state.move_option_files, file+cast(rune)increment)
-            append(&state.move_option_ranks, rank-increment)
-            increment += 1
-          } else {
-            moves_found = true
-          }
-        } else {
-          append(&state.capture_option_files, file+cast(rune)increment)
-          append(&state.capture_option_ranks, rank-increment)
-          moves_found = true
-        }
-        if file + cast(rune)increment > 'h' {
-          moves_found = true
-        }
-        if cast(int)rank - cast(int)increment < 0 {
-          moves_found = true
-        }
-      }
-    }
-    moves_found = false
-    increment = 1
-    //Down-left diagonals
-    if file > 'a' && rank > 0 {
-      for !moves_found {
-        if !check_square_for_piece(file-cast(rune)increment, rank-increment, .BLACK) {
-          if !check_square_for_piece(file-cast(rune)increment, rank-increment, .WHITE) {
-            append(&state.move_option_files, file-cast(rune)increment)
-            append(&state.move_option_ranks, rank-increment)
-            increment += 1
-          } else {
-            moves_found = true
-          }
-        } else {
-          append(&state.capture_option_files, file-cast(rune)increment)
-          append(&state.capture_option_ranks, rank-increment)
-          moves_found = true
-        }
-        if file - cast(rune)increment < 'a' {
-          moves_found = true
-        }
-      if cast(int)rank - cast(int)increment < 0 {
-          moves_found = true
-        }
-      }
-    }
-    moves_found = false
-    increment = 1
-    //Up-left diagonals
-    if file > 'a' && rank < 7 {
-      for !moves_found {
-        if !check_square_for_piece(file-cast(rune)increment, rank+increment, .BLACK) {
-          if !check_square_for_piece(file-cast(rune)increment, rank+increment, .WHITE) {
-            append(&state.move_option_files, file-cast(rune)increment)
-            append(&state.move_option_ranks, rank+increment)
-            increment += 1
-          } else {
-            moves_found = true
-          }
-        } else {
-          append(&state.capture_option_files, file-cast(rune)increment)
-          append(&state.capture_option_ranks, rank+increment)
-          moves_found = true
-        }
-        if file - cast(rune)increment < 'a' {
-          moves_found = true
-        }
-        if rank + increment > 7 {
-          moves_found = true
-        }
-      }
-    }
+get_queen_moves_and_captures :: proc() {
+  blocked_U: bool
+  blocked_R: bool
+  blocked_D: bool
+  blocked_L: bool
+
+  blocked_UL: bool
+  blocked_UR: bool
+  blocked_DR: bool
+  blocked_DL: bool
+  
+  state.move_options |= QUEEN_MOVES[square_to_index(state.selected_square)] & get_empty_squares()
+  if state.to_move == .WHITE {
+    state.capture_options |= QUEEN_MOVES[square_to_index(state.selected_square)] & get_black_pieces()
   } else {
-    //Up-right diagonals
-    if file > 'a' && rank > 0 {
-      for !moves_found {
-        if !check_square_for_piece(file-cast(rune)increment, rank-increment, .WHITE) {
-          if !check_square_for_piece(file-cast(rune)increment, rank-increment, .BLACK) {
-            append(&state.move_option_files, file-cast(rune)increment)
-            append(&state.move_option_ranks, rank-increment)
-            increment += 1
-          } else {
-            moves_found = true
-          }
-        } else {
-          append(&state.capture_option_files, file-cast(rune)increment)
-          append(&state.capture_option_ranks, rank-increment)
-          moves_found = true
-        }
-        if file - cast(rune)increment < 'a' {
-          moves_found = true
-        }
-        if cast(int)rank - cast(int)increment < 0 {
-          moves_found = true
-        }
-      }
-    }
-    moves_found = false
-    increment = 1
-    //Down-right diagonals
-    if file > 'a' && rank < 7 {
-      for !moves_found {
-        if !check_square_for_piece(file-cast(rune)increment, rank+increment, .WHITE) {
-          if !check_square_for_piece(file-cast(rune)increment, rank+increment, .BLACK) {
-            append(&state.move_option_files, file-cast(rune)increment)
-            append(&state.move_option_ranks, rank+increment)
-            increment += 1
-          } else {
-            moves_found = true
-          }
-        } else {
-          append(&state.capture_option_files, file-cast(rune)increment)
-          append(&state.capture_option_ranks, rank+increment)
-          moves_found = true
-        }
-        if file - cast(rune)increment < 'a' {
-          moves_found = true
-        }
-        if rank + increment > 7 {
-          moves_found = true
-        }
-      }
-    }
-    moves_found = false
-    increment = 1
-    //Down-left diagonals
-    if file < 'h' && rank < 7 {
-      for !moves_found {
-        if !check_square_for_piece(file+cast(rune)increment, rank+increment, .WHITE) {
-          if !check_square_for_piece(file+cast(rune)increment, rank+increment, .BLACK) {
-            append(&state.move_option_files, file+cast(rune)increment)
-            append(&state.move_option_ranks, rank+increment)
-            increment += 1
-          } else {
-            moves_found = true
-          }
-        } else {
-          append(&state.capture_option_files, file+cast(rune)increment)
-          append(&state.capture_option_ranks, rank+increment)
-          moves_found = true
-        }
-        if file + cast(rune)increment > 'h' {
-          moves_found = true
-        }
-      if rank + increment > 7 {
-          moves_found = true
-        }
-      }
-    }
-    moves_found = false
-    increment = 1
-    //Up-left diagonals
-    if file < 'h' && rank > 0 {
-      for !moves_found {
-        if !check_square_for_piece(file+cast(rune)increment, rank-increment, .WHITE) {
-          if !check_square_for_piece(file+cast(rune)increment, rank-increment, .BLACK) {
-            append(&state.move_option_files, file+cast(rune)increment)
-            append(&state.move_option_ranks, rank-increment)
-            increment += 1
-          } else {
-            moves_found = true
-          }
-        } else {
-          append(&state.capture_option_files, file+cast(rune)increment)
-          append(&state.capture_option_ranks, rank-increment)
-          moves_found = true
-        }
-        if file + cast(rune)increment > 'h' {
-          moves_found = true
-        }
-        if cast(int)rank - cast(int)increment < 0 {
-          moves_found = true
-        }
-      }
-    }
+    state.capture_options |= QUEEN_MOVES[square_to_index(state.selected_square)] & get_white_pieces()
   }
+  file := get_file(state.selected_square)
+  loop_limit_L := 7 if (file == 8) else 6
+  loop_limit_R := 7 if (file == 1) else 6
+  for i in 1 ..= 7 {
+    if blocked_U {
+      state.move_options ~= (state.selected_square >> (8 * cast(u8)i) & state.move_options)
+      state.capture_options ~= (state.selected_square >> (8 * cast(u8)i) & state.capture_options)
+    }
+    if blocked_R && i <= loop_limit_R {
+      state.move_options ~= (state.selected_square >> cast(u8)i & state.move_options)
+      state.capture_options ~= (state.selected_square >> cast(u8)i & state.capture_options)
+    }
+    if blocked_D {
+      state.move_options ~= (state.selected_square << (8 * cast(u8)i) & state.move_options)
+      state.capture_options ~= (state.selected_square << (8 * cast(u8)i) & state.capture_options)
+    }
+    if blocked_L && i <= loop_limit_L {
+      state.move_options ~= (state.selected_square << cast(u8)i & state.move_options)
+      state.capture_options ~= (state.selected_square << cast(u8)i & state.capture_options)
+    }
+
+    if blocked_UL {
+      state.move_options ~= (state.selected_square >> (9 * cast(u8)i) & state.move_options)
+      state.capture_options ~= (state.selected_square >> (9 * cast(u8)i) & state.capture_options)
+    }
+    if blocked_UR {
+      state.move_options ~= (state.selected_square >> (7 * cast(u8)i) & state.move_options)
+      state.capture_options ~= (state.selected_square >> (7 * cast(u8)i) & state.capture_options)
+    }
+    if blocked_DR {
+      state.move_options ~= (state.selected_square << (9 * cast(u8)i) & state.move_options)
+      state.capture_options ~= (state.selected_square << (9 * cast(u8)i) & state.capture_options)
+    }
+    if blocked_DL {
+      state.move_options ~= (state.selected_square << (7 * cast(u8)i) & state.move_options)
+      state.capture_options ~= (state.selected_square << (7 * cast(u8)i) & state.capture_options)
+    }
+
+    if state.move_options & (state.selected_square >> (8 * cast(u8)i)) == 0 {
+      blocked_U = true
+    }
+    if state.move_options & (state.selected_square >> cast(u8)i) == 0 {
+      blocked_R = true
+    }
+    if state.move_options & (state.selected_square << (8 * cast(u8)i)) == 0 {
+      blocked_D = true
+    }
+    if state.move_options & (state.selected_square << cast(u8)i) == 0 {
+      blocked_L = true
+    }
+
+    if state.move_options & (state.selected_square >> (9 * cast(u8)i)) == 0 {
+      blocked_UL = true
+    }
+    if state.move_options & (state.selected_square >> (7 * cast(u8)i)) == 0 {
+      blocked_UR = true
+    }
+    if state.move_options & (state.selected_square << (9 * cast(u8)i)) == 0 {
+      blocked_DR = true
+    }
+    if state.move_options & (state.selected_square << (7 * cast(u8)i)) == 0 {
+      blocked_DL = true
+    }
+  } 
 }
 
-get_rook_moves_and_captures :: proc(file: rune = state.selected_file, rank: uint = state.selected_rank, colour: Colour = state.to_move) {
-  moves_found: bool
-  increment : uint = 1
-  if colour == .WHITE {
-    //Forward moves and captures
-    if rank < 7 {
-      for !moves_found {
-        if !check_square_for_piece(file, rank+increment, .BLACK) {
-          if !check_square_for_piece(file, rank+increment, .WHITE) {
-            append(&state.move_option_files, file)
-            append(&state.move_option_ranks, rank+increment)
-            increment += 1
-          } else {
-            moves_found = true
-          }
-        } else {
-          append(&state.capture_option_files, file)
-          append(&state.capture_option_ranks, rank+increment)
-          moves_found = true
-        }
-        if rank + increment > 7 {
-          moves_found = true
-        }
-      }
-    }
-    moves_found = false
-    increment = 1
-    //Right moves and captures
-    if file < 'h' {
-      for !moves_found {
-        if !check_square_for_piece(file+cast(rune)increment, rank, .BLACK) {
-          if !check_square_for_piece(file+cast(rune)increment, rank, .WHITE) {
-            append(&state.move_option_files, file+cast(rune)increment)
-            append(&state.move_option_ranks, rank)
-            increment += 1
-          } else {
-            moves_found = true
-          }
-        } else {
-          append(&state.capture_option_files, file+cast(rune)increment)
-          append(&state.capture_option_ranks, rank)
-          moves_found = true
-        }
-        if file + cast(rune)increment > 'h' {
-          moves_found = true
-        }
-      }
-    }
-    moves_found = false
-    increment = 1
-    //Backwards moves and captures
-    if rank > 0 {
-      for !moves_found {
-        if !check_square_for_piece(file, rank-increment, .BLACK) {
-          if !check_square_for_piece(file, rank-increment, .WHITE) {
-            append(&state.move_option_files, file)
-            append(&state.move_option_ranks, rank-increment)
-            increment += 1
-          } else {
-            moves_found = true
-          }
-        } else {
-          append(&state.capture_option_files, file)
-          append(&state.capture_option_ranks, rank-increment)
-          moves_found = true
-        }
-        if cast(int)rank - cast(int)increment < 0 {
-          moves_found = true
-        }
-      }
-    }
-    moves_found = false
-    increment = 1
-    //Left moves and captures
-    if file > 'a' {
-      for !moves_found {
-        if !check_square_for_piece(file-cast(rune)increment, rank, .BLACK) {
-          if !check_square_for_piece(file-cast(rune)increment, rank, .WHITE) {
-            append(&state.move_option_files, file-cast(rune)increment)
-            append(&state.move_option_ranks, rank)
-            increment += 1
-          } else {
-            moves_found = true
-          }
-        } else {
-          append(&state.capture_option_files, file-cast(rune)increment)
-          append(&state.capture_option_ranks, rank)
-          moves_found = true
-        }
-        if file - cast(rune)increment < 'a' {
-          moves_found = true
-        }
-      }
-    }
+get_king_moves_and_captures :: proc() {
+  state.move_options |= KING_MOVES[square_to_index(state.selected_square)] & get_empty_squares()
+  if state.to_move == .WHITE {
+    state.capture_options |= KING_MOVES[square_to_index(state.selected_square)] & get_black_pieces()
   } else {
-    //Forwards moves and captures
-    if rank > 0 {
-      for !moves_found {
-        if !check_square_for_piece(file, rank-increment, .WHITE) {
-          if !check_square_for_piece(file, rank-increment, .BLACK) {
-            append(&state.move_option_files, file)
-            append(&state.move_option_ranks, rank-increment)
-            increment += 1
-          } else {
-            moves_found = true
-          }
-        } else {
-          append(&state.capture_option_files, file)
-          append(&state.capture_option_ranks, rank-increment)
-          moves_found = true
-        }
-        if cast(int)rank - cast(int)increment < 0 {
-          moves_found = true
-        }
-      }
-    }
-    moves_found = false
-    increment = 1
-    //Right moves and captures
-    if file > 'a' {
-      for !moves_found {
-        if !check_square_for_piece(file-cast(rune)increment, rank, .WHITE) {
-          if !check_square_for_piece(file-cast(rune)increment, rank, .BLACK) {
-            append(&state.move_option_files, file-cast(rune)increment)
-            append(&state.move_option_ranks, rank)
-            increment += 1
-          } else {
-            moves_found = true
-          }
-        } else {
-          append(&state.capture_option_files, file-cast(rune)increment)
-          append(&state.capture_option_ranks, rank)
-          moves_found = true
-        }
-        if file - cast(rune)increment < 'a' {
-          moves_found = true
-        }
-      }
-    }
-    moves_found = false
-    increment = 1
-    //Backwards moves and captures
-    if rank < 7 {
-      for !moves_found {
-        if !check_square_for_piece(file, rank+increment, .WHITE) {
-          if !check_square_for_piece(file, rank+increment, .BLACK) {
-            append(&state.move_option_files, file)
-            append(&state.move_option_ranks, rank+increment)
-            increment += 1
-          } else {
-            moves_found = true
-          }
-        } else {
-          append(&state.capture_option_files, file)
-          append(&state.capture_option_ranks, rank+increment)
-          moves_found = true
-        }
-        if rank + increment > 7 {
-          moves_found = true
-        }
-      }
-    }
-    moves_found = false
-    increment = 1
-    //Left moves and captures
-    if file < 'h' {
-      for !moves_found {
-        if !check_square_for_piece(file+cast(rune)increment, rank, .WHITE) {
-          if !check_square_for_piece(file+cast(rune)increment, rank, .BLACK) {
-            append(&state.move_option_files, file+cast(rune)increment)
-            append(&state.move_option_ranks, rank)
-            increment += 1
-          } else {
-            moves_found = true
-          }
-        } else {
-          append(&state.capture_option_files, file+cast(rune)increment)
-          append(&state.capture_option_ranks, rank)
-          moves_found = true
-        }
-        if file + cast(rune)increment > 'h' {
-          moves_found = true
-        }
-      }
-    }
-  }
-}
-
-get_king_moves_and_captures :: proc(file: rune = state.selected_file, rank: uint = state.selected_rank, colour: Colour = state.to_move) {
-  if colour == .WHITE {
-    if file < 'h' {
-      //Top Right
-      if rank < 7 {
-        if !check_square_for_piece(file+1, rank+1, .WHITE) && !check_square_for_piece(file+1, rank+1, .BLACK) {
-          append(&state.move_option_files, file+1)
-          append(&state.move_option_ranks, rank+1)
-        } else if check_square_for_piece(file+1, rank+1, .BLACK) {
-          append(&state.capture_option_files, file+1)
-          append(&state.capture_option_ranks, rank+1)
-        }
-      }
-      //Bottom Right
-      if rank > 0 {
-        if !check_square_for_piece(file+1, rank-1, .WHITE) && !check_square_for_piece(file+1, rank-1, .BLACK) {
-          append(&state.move_option_files, file+1)
-          append(&state.move_option_ranks, rank-1)
-        } else if check_square_for_piece(file+1, rank-1, .BLACK) {
-          append(&state.capture_option_files, file+1)
-          append(&state.capture_option_ranks, rank-1)
-        }
-      }
-      //Right
-      if !check_square_for_piece(file+1, rank, .WHITE) && !check_square_for_piece(file+1, rank, .BLACK) {
-        append(&state.move_option_files, file+1)
-        append(&state.move_option_ranks, rank)
-      } else if check_square_for_piece(file+1, rank, .BLACK) {
-        append(&state.capture_option_files, file+1)
-        append(&state.capture_option_ranks, rank)
-      }
-    }
-    if file > 'a' {
-      //Top Left
-      if rank < 7 {
-        if !check_square_for_piece(file-1, rank+1, .WHITE) && !check_square_for_piece(file-1, rank+1, .BLACK) {
-          append(&state.move_option_files, file-1)
-          append(&state.move_option_ranks, rank+1)
-        } else if check_square_for_piece(file-1, rank+1, .BLACK) {
-          append(&state.capture_option_files, file-1)
-          append(&state.capture_option_ranks, rank+1)
-        }
-      }
-      //Bottom Left
-      if rank > 0 {
-        if !check_square_for_piece(file-1, rank-1, .WHITE) && !check_square_for_piece(file-1, rank-1, .BLACK) {
-          append(&state.move_option_files, file-1)
-          append(&state.move_option_ranks, rank-1)
-        } else if check_square_for_piece(file-1, rank-1, .BLACK) {
-          append(&state.capture_option_files, file-1)
-          append(&state.capture_option_ranks, rank-1)
-        }
-      }
-      //Left
-      if !check_square_for_piece(file-1, rank, .WHITE) && !check_square_for_piece(file-1, rank, .BLACK) {
-        append(&state.move_option_files, file-1)
-        append(&state.move_option_ranks, rank)
-      } else if check_square_for_piece(file-1, rank, .BLACK) {
-        append(&state.capture_option_files, file-1)
-        append(&state.capture_option_ranks, rank)
-      }
-    }
-    //Top
-    if rank < 7 {
-      if !check_square_for_piece(file, rank+1, .WHITE) && !check_square_for_piece(file, rank+1, .BLACK) {
-        append(&state.move_option_files, file)
-        append(&state.move_option_ranks, rank+1)
-      } else if check_square_for_piece(file, rank+1, .BLACK) {
-        append(&state.capture_option_files, file)
-        append(&state.capture_option_ranks, rank+1)
-      }
-    }
-    //Bottom
-    if rank > 0 {
-      if !check_square_for_piece(file, rank-1, .WHITE) && !check_square_for_piece(file, rank-1, .BLACK) {
-        append(&state.move_option_files, file)
-        append(&state.move_option_ranks, rank-1)
-      } else if check_square_for_piece(file, rank-1, .BLACK) {
-        append(&state.capture_option_files, file)
-        append(&state.capture_option_ranks, rank-1)
-      }
-    }
-    if file == 'e' && rank == 0 && state.can_castle_white_ks {
-      if !check_square_for_piece('f', 0, .WHITE) && !check_square_for_piece('f', 0, .BLACK) {
-        if !check_square_for_piece('g', 0, .WHITE) && !check_square_for_piece('g', 0, .BLACK) {
-          temp_board := make(map[rune][dynamic]PieceInfo)
-          defer delete(temp_board)
-          copy_board(&temp_board, state.board.piece_map)
-
-          state.board.piece_map['f'][0] = state.board.piece_map['e'][0]
-          state.board.piece_map['e'][0] = PieceInfo{}
-          if !is_check(colour = .WHITE) {
-            state.board.piece_map['g'][0] = state.board.piece_map['f'][0]
-            state.board.piece_map['f'][0] = PieceInfo{}
-            if !is_check(colour = .WHITE) {
-              append(&state.move_option_files, 'g')
-              append(&state.move_option_ranks, 0)
-            }
-          }
-          copy_board(&state.board.piece_map, temp_board)
-        }
-      }
-    }
-    if file == 'e' && rank == 0 && state.can_castle_white_qs {
-      if !check_square_for_piece('d', 0, .WHITE) && !check_square_for_piece('d', 0, .BLACK) {
-        if !check_square_for_piece('c', 0, .WHITE) && !check_square_for_piece('c', 0, .BLACK) {
-          if !check_square_for_piece('b', 0, .WHITE) && !check_square_for_piece('b', 0, .BLACK) {
-            temp_board := make(map[rune][dynamic]PieceInfo)
-            defer delete(temp_board)
-            copy_board(&temp_board, state.board.piece_map)
-
-            state.board.piece_map['d'][0] = state.board.piece_map['e'][0]
-            state.board.piece_map['e'][0] = PieceInfo{}
-            if !is_check(colour = .WHITE) {
-              state.board.piece_map['c'][0] = state.board.piece_map['d'][0]
-              state.board.piece_map['d'][0] = PieceInfo{}
-              if !is_check(colour = .WHITE) {
-                append(&state.move_option_files, 'c')
-                append(&state.move_option_ranks, 0)
-              }
-            }
-            copy_board(&state.board.piece_map, temp_board)
-
-          }
-        }
-      } 
-    }
-  } else {
-    if file < 'h' {
-      //Top Right
-      if rank < 7 {
-        if !check_square_for_piece(file+1, rank+1, .WHITE) && !check_square_for_piece(file+1, rank+1, .BLACK) {
-          append(&state.move_option_files, file+1)
-          append(&state.move_option_ranks, rank+1)
-        } else if check_square_for_piece(file+1, rank+1, .WHITE) {
-          append(&state.capture_option_files, file+1)
-          append(&state.capture_option_ranks, rank+1)
-        }
-      }
-      //Bottom Right
-      if rank > 0 {
-        if !check_square_for_piece(file+1, rank-1, .WHITE) && !check_square_for_piece(file+1, rank-1, .BLACK) {
-          append(&state.move_option_files, file+1)
-          append(&state.move_option_ranks, rank-1)
-        } else if check_square_for_piece(file+1, rank-1, .WHITE) {
-          append(&state.capture_option_files, file+1)
-          append(&state.capture_option_ranks, rank-1)
-        }
-      }
-      //Right
-      if !check_square_for_piece(file+1, rank, .WHITE) && !check_square_for_piece(file+1, rank, .BLACK) {
-        append(&state.move_option_files, file+1)
-        append(&state.move_option_ranks, rank)
-      } else if check_square_for_piece(file+1, rank, .WHITE) {
-        append(&state.capture_option_files, file+1)
-        append(&state.capture_option_ranks, rank)
-      }
-    }
-    if file > 'a' {
-      //Top Left
-      if rank < 7 {
-        if !check_square_for_piece(file-1, rank+1, .WHITE) && !check_square_for_piece(file-1, rank+1, .BLACK) {
-          append(&state.move_option_files, file-1)
-          append(&state.move_option_ranks, rank+1)
-        } else if check_square_for_piece(file-1, rank+1, .WHITE) {
-          append(&state.capture_option_files, file-1)
-          append(&state.capture_option_ranks, rank+1)
-        }
-      }
-      //Bottom Left
-      if rank > 0 {
-        if !check_square_for_piece(file-1, rank-1, .WHITE) && !check_square_for_piece(file-1, rank-1, .BLACK) {
-          append(&state.move_option_files, file-1)
-          append(&state.move_option_ranks, rank-1)
-        } else if check_square_for_piece(file-1, rank-1, .WHITE) {
-          append(&state.capture_option_files, file-1)
-          append(&state.capture_option_ranks, rank-1)
-        }
-      }
-      //Left
-      if !check_square_for_piece(file-1, rank, .WHITE) && !check_square_for_piece(file-1, rank, .BLACK) {
-        append(&state.move_option_files, file-1)
-        append(&state.move_option_ranks, rank)
-      } else if check_square_for_piece(file-1, rank, .WHITE) {
-        append(&state.capture_option_files, file-1)
-        append(&state.capture_option_ranks, rank)
-      }
-    }
-    //Top
-    if rank < 7 {
-      if !check_square_for_piece(file, rank+1, .WHITE) && !check_square_for_piece(file, rank+1, .BLACK) {
-        append(&state.move_option_files, file)
-        append(&state.move_option_ranks, rank+1)
-      } else if check_square_for_piece(file, rank+1, .WHITE) {
-        append(&state.capture_option_files, file)
-        append(&state.capture_option_ranks, rank+1)
-      }
-    }
-    //Bottom
-    if rank > 0 {
-      if !check_square_for_piece(file, rank-1, .WHITE) && !check_square_for_piece(file, rank-1, .BLACK) {
-        append(&state.move_option_files, file)
-        append(&state.move_option_ranks, rank-1)
-      } else if check_square_for_piece(file, rank-1, .WHITE) {
-        append(&state.capture_option_files, file)
-        append(&state.capture_option_ranks, rank-1)
-      }
-    }
-    if file == 'e' && rank == 7 && state.can_castle_black_ks {
-      if !check_square_for_piece('f', 7, .WHITE) && !check_square_for_piece('f', 7, .BLACK) {
-        if !check_square_for_piece('g', 7, .WHITE) && !check_square_for_piece('g', 7, .BLACK) {
-          temp_board := make(map[rune][dynamic]PieceInfo)
-          defer delete(temp_board)
-          copy_board(&temp_board, state.board.piece_map)
-
-          state.board.piece_map['f'][7] = state.board.piece_map['e'][7]
-          state.board.piece_map['e'][7] = PieceInfo{}
-          if !is_check(colour = .WHITE) {
-            state.board.piece_map['g'][7] = state.board.piece_map['f'][7]
-            state.board.piece_map['f'][7] = PieceInfo{}
-            if !is_check(colour = .WHITE) {
-              append(&state.move_option_files, 'g')
-              append(&state.move_option_ranks, 7)
-            }
-          }
-          copy_board(&state.board.piece_map, temp_board)
-        }
-      }
-    }
-    if file == 'e' && rank == 7 && state.can_castle_black_qs {
-      if !check_square_for_piece('d', 7, .WHITE) && !check_square_for_piece('d', 7, .BLACK) {
-        if !check_square_for_piece('c', 7, .WHITE) && !check_square_for_piece('c', 7, .BLACK) {
-          if !check_square_for_piece('b', 7, .WHITE) && !check_square_for_piece('b', 7, .BLACK) {
-            temp_board := make(map[rune][dynamic]PieceInfo)
-            defer delete(temp_board)
-            copy_board(&temp_board, state.board.piece_map)
-
-            state.board.piece_map['d'][7] = state.board.piece_map['e'][7]
-            state.board.piece_map['e'][7] = PieceInfo{}
-            if !is_check(colour = .WHITE) {
-              state.board.piece_map['c'][7] = state.board.piece_map['d'][7]
-              state.board.piece_map['d'][7] = PieceInfo{}
-              if !is_check(colour = .WHITE) {
-                append(&state.move_option_files, 'c')
-                append(&state.move_option_ranks, 7)
-              }
-            }
-            copy_board(&state.board.piece_map, temp_board)
-          }
-        }
-      } 
-    }
+    state.capture_options |= KING_MOVES[square_to_index(state.selected_square)] & get_white_pieces()
   }
 }
 
@@ -1217,7 +273,7 @@ Checks a given board state (current board state by default) and for a given colo
 Loops through all of the pieces of a given colour and accumulates all of the available captures.
 If one of those avaialble captures is the king then returns true. If not returns false
 */
-
+/*
 is_check :: proc(board: map[rune][dynamic]PieceInfo = state.board.piece_map, colour: Colour = state.to_move) -> bool {
   clear(&state.capture_option_files)
   clear(&state.capture_option_ranks)

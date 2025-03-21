@@ -22,11 +22,10 @@ GameState :: struct {
   mode: Mode,
   board: Board,
   hovered_square: u64,
-  selected_square: u8,
-  move_option_files: [dynamic]rune,
-  move_option_ranks: [dynamic]uint,
-  capture_option_files: [dynamic]rune,
-  capture_option_ranks: [dynamic]uint,
+  selected_square: u64,
+  selected_piece: PieceInfo,
+  move_options: u64,
+  capture_options: u64,
   last_move: Move,
   can_castle_white_qs: bool,
   can_castle_white_ks: bool,
@@ -40,7 +39,8 @@ state := GameState{}
 BOARD_WIDTH  :: 130
 BOARD_HEIGHT :: 64
 
-PAWN_MOVES := precompute_pawn_moves()
+PAWN_MOVES_W := precompute_pawn_moves_w()
+PAWN_MOVES_B := precompute_pawn_moves_b()
 KNIGHT_MOVES := precompute_knight_moves()
 BISHOP_MOVES := precompute_bishop_moves()
 ROOK_MOVES := precompute_rook_moves()
@@ -63,8 +63,6 @@ main :: proc() {
   state.mode = .SELECT
   state.board = getDefaultBoard()
   state.hovered_square = (1 << 4) << (8 * 7)
-  state.move_option_files = [dynamic]rune{}
-  state.move_option_ranks = [dynamic]uint{}
   state.can_castle_white_qs = true
   state.can_castle_white_ks = true
   state.can_castle_black_qs = true
@@ -77,7 +75,7 @@ main :: proc() {
   t.blit_screen(&s)
 
   draw_board(&s)
-  //draw_info(&s)
+  draw_info(&s)
 
   for state.running {
     defer free_all(context.temp_allocator)
@@ -96,10 +94,10 @@ main :: proc() {
       handle_select_input(keys.key)
     } else if state.mode == .MOVE {
       //Cycle through the available moves and move the piece
-      //handle_move_input(keys.key)
+      handle_move_input(keys.key)
     }
     draw_board(&s)
-    //draw_info(&s)
+    draw_info(&s)
   }
   free_all(context.temp_allocator)
   t.hide_cursor(false)
@@ -121,11 +119,11 @@ draw_info :: proc(win: ^t.Screen) {
   y += 1
   
   t.move_cursor(win, y, x)
-//  t.write(win, fmt.aprintf("Hover file: %v", state.hovered_file))
+  t.write(win, fmt.aprintf("Hover file: %v", get_file(state.hovered_square)))
   y += 1
 
   t.move_cursor(win, y, x)
-//  t.write(win, fmt.aprintf("Hover rank: %v", state.hovered_rank))
+  t.write(win, fmt.aprintf("Hover rank: %v", get_rank(state.hovered_square)))
   y += 1
 
   t.move_cursor(win, y, x)
@@ -145,23 +143,11 @@ draw_info :: proc(win: ^t.Screen) {
   y += 1
 
   t.move_cursor(win, y, x)
-  t.write(win, fmt.aprintf("Available moves: %v", len(state.move_option_files)))
-  y += 1
-
-  t.move_cursor(win, y, x)
   t.write(win, fmt.aprintf("Moves:"))
   y += 1
 
-  for i in 0 ..< len(state.move_option_files) {
-    t.move_cursor(win, y, x)
-    t.write(win, fmt.aprintf("%v%v", state.move_option_files[i], state.move_option_ranks[i]+1))
-    y += 1
-  }
-
-  y += 1
-
   t.move_cursor(win, y, x)
-  t.write(win, fmt.aprintf("Available captures: %v", len(state.capture_option_files)))
+  t.write(win, fmt.aprintf("Test: %v", ~cast(u64)5))
   y += 1
 
   t.blit_screen(win)
@@ -186,23 +172,15 @@ handle_select_input :: proc(key: t.Key) {
   case .D, .Arrow_Right:
     increment_file_selected()
   case .Enter:
-    if state.to_move == .WHITE {
-      state.to_move = .BLACK
-    } else {
-      state.to_move = .WHITE
-    }
-    temp_square := find_closest_piece(1, 8, 1, 8, state.to_move)
-    if temp_square != 0 {
-      state.hovered_square = temp_square
-    }
-    /*
-    state.selected_file = state.hovered_file
-    state.selected_rank = state.hovered_rank
-    clear(&state.move_option_files)
-    clear(&state.move_option_ranks)
-    clear(&state.capture_option_files)
-    clear(&state.capture_option_ranks)
-    switch state.board.piece_map[state.selected_file][state.selected_rank].piece {
+    state.selected_square = state.hovered_square
+    state.selected_piece = get_piece(state.selected_square)
+
+    state.move_options = 0
+    state.capture_options = 0
+
+    index := square_to_index(state.selected_square)
+
+    #partial switch state.selected_piece.piece {
     case .PAWN:
       get_pawn_moves_and_captures()
     case .KNIGHT:
@@ -212,18 +190,17 @@ handle_select_input :: proc(key: t.Key) {
     case .ROOK:
       get_rook_moves_and_captures()
     case .QUEEN:
-      get_bishop_moves_and_captures()
-      get_rook_moves_and_captures()
+      get_queen_moves_and_captures()
     case .KING:
       get_king_moves_and_captures()
-    case .NONE:
     }
-    if len(state.move_option_files) > 0 || len(state.capture_option_files) > 0 {
+
+    if state.move_options > 0 || state.capture_options > 0 {
       state.mode = .MOVE
-    }*/
+    }
   }
 }
-/*
+
 handle_move_input :: proc(key: t.Key) {
   #partial switch key {
   case .W, .Arrow_Up:
@@ -233,11 +210,7 @@ handle_move_input :: proc(key: t.Key) {
       decrement_rank_move()
     }
   case .A, .Arrow_Left:
-    if state.to_move == .WHITE {
-      decrement_file_move()
-    } else {
-      increment_file_move()
-    }
+    decrement_file_move()
   case .S, .Arrow_Down:
     if state.to_move == .WHITE {
       decrement_rank_move()
@@ -245,215 +218,55 @@ handle_move_input :: proc(key: t.Key) {
       increment_rank_move()
     }
   case .D, .Arrow_Right:
-    if state.to_move == .WHITE {
-      increment_file_move()
-    } else {
-      decrement_file_move()
-    }
+    increment_file_move()
   case .Enter:
-    saved_state := make(map[rune][dynamic]PieceInfo)
-    defer delete(saved_state)
-    copy_board(&saved_state, state.board.piece_map)
-
-    if !state.check {
-      if check_valid_move_or_capture(state.hovered_file, state.hovered_rank) {
-        if state.board.piece_map[state.selected_file][state.selected_rank].piece == .PAWN {
-          if abs(cast(int)state.selected_file - cast(int)state.hovered_file) == 1 && abs(cast(int)state.selected_rank - cast(int)state.hovered_rank) == 1 {
-            if !check_square_for_piece(state.hovered_file, state.hovered_rank, .WHITE) && !check_square_for_piece(state.hovered_file, state.hovered_rank, .BLACK) {
-              state.board.piece_map[state.hovered_file][state.hovered_rank-1 if (state.to_move == .WHITE) else state.hovered_rank+1] = PieceInfo{}
-            }
-          }
-        }
-
-        if state.board.piece_map[state.selected_file][state.selected_rank].piece == .ROOK {
-          if state.selected_file == 'a' {
-            if state.to_move == .WHITE {
-              state.can_castle_white_qs = false
-            } else {
-              state.can_castle_black_qs = false
-            }
-          } else if state.selected_file == 'h' {
-            if state.to_move == .WHITE {
-              state.can_castle_white_ks = false
-            } else {
-              state.can_castle_black_ks = false
-            }
-          }
-        }
-
-        if state.board.piece_map[state.selected_file][state.selected_rank].piece == .KING {
-          if state.to_move == .WHITE && state.can_castle_white_qs && state.hovered_file == 'c' && state.hovered_rank == 0 {
-            state.board.piece_map['d'][0] = state.board.piece_map['a'][0]
-            state.board.piece_map['a'][0] = PieceInfo{}
-          } else if state.to_move == .WHITE && state.can_castle_white_ks && state.hovered_file == 'g' && state.hovered_rank == 0 {
-            state.board.piece_map['f'][0] = state.board.piece_map['h'][0]
-            state.board.piece_map['h'][0] = PieceInfo{}
-          } else if state.to_move == .BLACK && state.can_castle_black_qs && state.hovered_file == 'c' && state.hovered_rank == 7 {
-            state.board.piece_map['d'][7] = state.board.piece_map['a'][7]
-            state.board.piece_map['a'][7] = PieceInfo{}
-          } else if state.to_move == .BLACK && state.can_castle_black_ks && state.hovered_file == 'g' && state.hovered_rank == 7 {
-            state.board.piece_map['f'][7] = state.board.piece_map['h'][7]
-            state.board.piece_map['h'][7] = PieceInfo{}
-          }
-          if state.to_move == .WHITE {
-            state.can_castle_white_qs = false
-            state.can_castle_white_ks = false
-          } else {
-            state.can_castle_black_qs = false
-            state.can_castle_black_ks = false
-          }
-        }
-
-        captured_piece := state.board.piece_map[state.hovered_file][state.hovered_rank]
-        state.board.piece_map[state.hovered_file][state.hovered_rank] = state.board.piece_map[state.selected_file][state.selected_rank]
-        state.board.piece_map[state.selected_file][state.selected_rank] = PieceInfo{}
-
-        if state.board.piece_map[state.hovered_file][state.hovered_rank].piece == .PAWN {
-          if state.to_move == .WHITE {
-            if state.hovered_rank == 7 {
-              //Pawn promotion
-              handle_promotion_input()
-            }
-          } else {
-            if state.hovered_rank == 0 {
-              //Pawn promotion
-              handle_promotion_input()
-            }
-          }
-        }
-
-        colour: Colour
-
-        if state.to_move == .WHITE {
-          colour = .BLACK
-        } else {
-          colour = .WHITE
-        }
-
-        if is_check(colour = colour) {
-          state.mode = .SELECT
-          copy_board(&state.board.piece_map, saved_state)
-          state.hovered_file = state.selected_file
-          state.hovered_rank = state.selected_rank
-        } else {
-          state.last_move = Move{
-            state.board.piece_map[state.hovered_file][state.hovered_rank].piece,
-            state.selected_file,
-            state.hovered_file,
-            state.selected_rank,
-            state.hovered_rank,
-          }
-          if is_check() {
-            state.check = true
-            if is_checkmate() {
-              state.running = false
-            }
-          }
-          state.mode = .SELECT
-          if state.to_move == .WHITE {
-            state.to_move = .BLACK
-          } else {
-            state.to_move = .WHITE
-            state.move_no += 1
-          }
-          temp_file, temp_rank := find_closest_piece('a', 'h', 0, 7, state.to_move)
-          if temp_file != -1 {
-            state.hovered_file = temp_file
-            state.hovered_rank = temp_rank
-          }
-        }
+    if state.hovered_square != state.selected_square {
+      state.board.piece_map[state.selected_piece] ~= state.selected_square
+      state.board.piece_map[state.selected_piece] ~= state.hovered_square
+ 
+      if state.to_move == .WHITE {
+        state.board.piece_map[PAWN_B] ~= (state.board.piece_map[PAWN_B] & state.hovered_square)
+        state.board.piece_map[KNIGHT_B] ~= (state.board.piece_map[KNIGHT_B] & state.hovered_square)
+        state.board.piece_map[BISHOP_B] ~= (state.board.piece_map[BISHOP_B] & state.hovered_square)
+        state.board.piece_map[ROOK_B] ~= (state.board.piece_map[ROOK_B] & state.hovered_square)
+        state.board.piece_map[QUEEN_B] ~= (state.board.piece_map[QUEEN_B] & state.hovered_square)
+        state.board.piece_map[KING_B] ~= (state.board.piece_map[KING_B] & state.hovered_square)
+      } else {
+        state.board.piece_map[PAWN_W] ~= (state.board.piece_map[PAWN_W] & state.hovered_square)
+        state.board.piece_map[KNIGHT_W] ~= (state.board.piece_map[KNIGHT_W] & state.hovered_square)
+        state.board.piece_map[BISHOP_W] ~= (state.board.piece_map[BISHOP_W] & state.hovered_square)
+        state.board.piece_map[ROOK_W] ~= (state.board.piece_map[ROOK_W] & state.hovered_square)
+        state.board.piece_map[QUEEN_W] ~= (state.board.piece_map[QUEEN_W] & state.hovered_square)
+        state.board.piece_map[KING_W] ~= (state.board.piece_map[KING_W] & state.hovered_square)
       }
-    } else {
-      if check_valid_move_or_capture(state.hovered_file, state.hovered_rank) {
-        if state.board.piece_map[state.selected_file][state.selected_rank].piece == .PAWN {
-          if abs(cast(int)state.selected_file - cast(int)state.hovered_file) == 1 && abs(cast(int)state.selected_rank - cast(int)state.hovered_rank) == 1 {
-            if !check_square_for_piece(state.hovered_file, state.hovered_rank, .WHITE) && !check_square_for_piece(state.hovered_file, state.hovered_rank, .BLACK) {
-              state.board.piece_map[state.hovered_file][state.hovered_rank-1 if (state.to_move == .WHITE) else state.hovered_rank+1] = PieceInfo{}
-            }
-          }
-        }
 
-        if state.board.piece_map[state.selected_file][state.selected_rank].piece == .ROOK {
-          if state.selected_file == 'a' {
-            if state.to_move == .WHITE {
-              state.can_castle_white_qs = false
-            } else {
-              state.can_castle_black_qs = false
-            }
-          } else if state.selected_file == 'h' {
-            if state.to_move == .WHITE {
-              state.can_castle_white_ks = false
-            } else {
-              state.can_castle_black_ks = false
-            }
-          }
-        }
-
-        if state.board.piece_map[state.selected_file][state.selected_rank].piece == .KING {
-          state.can_castle_white_qs = false
-          state.can_castle_white_ks = false
-          state.can_castle_black_qs = false
-          state.can_castle_black_ks = false
-        }
-
-        captured_piece := state.board.piece_map[state.hovered_file][state.hovered_rank]
-        state.board.piece_map[state.hovered_file][state.hovered_rank] = state.board.piece_map[state.selected_file][state.selected_rank]
-        state.board.piece_map[state.selected_file][state.selected_rank] = PieceInfo{}
-        
-        colour: Colour
-
-        if state.to_move == .WHITE {
-          colour = .BLACK
-        } else {
-          colour = .WHITE
-        }
-
-        if is_check(colour = colour) {
-          state.mode = .SELECT
-          copy_board(&state.board.piece_map, saved_state)
-          state.hovered_file = state.selected_file
-          state.hovered_rank = state.selected_rank
-        } else {
-          state.last_move = Move{
-            state.board.piece_map[state.hovered_file][state.hovered_rank].piece,
-            state.selected_file,
-            state.hovered_file,
-            state.selected_rank,
-            state.hovered_rank,
-          }
-
-          state.check = false
-          state.mode = .SELECT
-          
-          if is_check() {
-            state.check = true
-            if is_checkmate() {
-              state.running = false
-            }
-          }
-
-          if state.to_move == .WHITE {
-            state.to_move = .BLACK
-          } else {
-            state.to_move = .WHITE
-            state.move_no += 1
-          }
-          temp_file, temp_rank := find_closest_piece('a', 'h', 0, 7, state.to_move)
-          if temp_file != -1 {
-            state.hovered_file = temp_file
-            state.hovered_rank = temp_rank
-          }
-        }
+      if state.to_move == .WHITE {
+       state.to_move = .BLACK
+      } else {
+        state.to_move = .WHITE
+        state.move_no += 1
+      }
+      temp_square := find_closest_piece(1, 8, 1, 8, state.to_move)
+      if temp_square != 0 {
+        state.hovered_square = temp_square
       }
     }
+    state.mode = .SELECT
+    state.move_options = 0
+    state.capture_options = 0
+    state.selected_square = 0
+    state.selected_piece = PieceInfo{}
   case .Tab:
   case .Escape:
     state.mode = .SELECT
-    state.hovered_file = state.selected_file
-    state.hovered_rank = state.selected_rank
+    state.hovered_square = state.selected_square
+    state.move_options = 0
+    state.capture_options = 0
+    state.selected_square = 0
+    state.selected_piece = PieceInfo{}
   }
 }
-
+/*
 handle_promotion_input :: proc() {
   input, has_input := t.read(&s)
   keys := t.parse_keyboard_input(input)
@@ -572,96 +385,96 @@ decrement_rank_selected :: proc() {
     }
   } 
 }
-/*
-increment_file_move :: proc() {
-  original_file := state.hovered_file
-  if state.hovered_file != 'h' {
-    state.hovered_file += 1
-    for !check_valid_move_or_capture(state.hovered_file, state.hovered_rank) {
-      if state.hovered_file == 'h' {
-        state.hovered_file = original_file
-        temp_file, temp_rank := find_closest_move_or_capture(original_file+1, 'h', 0, 7)
 
-        if temp_file != -1 {
-          if check_valid_move_or_capture(temp_file, temp_rank) {
-            state.hovered_file = temp_file
-            state.hovered_rank = temp_rank
+increment_file_move :: proc() {
+  original_square := state.hovered_square
+  file := get_file(original_square)
+  if get_file(state.hovered_square) != 8 {
+    state.hovered_square <<= 1
+    for !check_valid_move_or_capture(state.hovered_square) {
+      if get_file(state.hovered_square) == 8 {
+        state.hovered_square = original_square
+        temp_square := find_closest_move_or_capture(get_file(state.hovered_square)+1, 8, 1, 8)
+
+        if temp_square != 0 {
+          if check_valid_move_or_capture(temp_square) {
+            state.hovered_square = temp_square
           }
         }
         break
       }
-      state.hovered_file += 1
+      state.hovered_square <<= 1
     }
   }
 }
 
 decrement_file_move :: proc() {
-  original_file := state.hovered_file
-  if state.hovered_file != 'a' {
-    state.hovered_file -= 1
-    for !check_valid_move_or_capture(state.hovered_file, state.hovered_rank) {
-      if state.hovered_file == 'a' {
-        state.hovered_file = original_file
-        temp_file, temp_rank := find_closest_move_or_capture(original_file-1, 'a', 0, 7)
+  original_square := state.hovered_square
+  file := get_file(original_square)
+  if get_file(state.hovered_square) != 1 {
+    state.hovered_square >>= 1
+    for !check_valid_move_or_capture(state.hovered_square) {
+      if get_file(state.hovered_square) == 1 {
+        state.hovered_square = original_square
+        temp_square := find_closest_move_or_capture(get_file(state.hovered_square)-1, 1, 1, 8)
 
-        if temp_file != -1 {
-          if check_valid_move_or_capture(temp_file, temp_rank) {
-            state.hovered_file = temp_file
-            state.hovered_rank = temp_rank
+        if temp_square != 0 {
+          if check_valid_move_or_capture(temp_square) {
+            state.hovered_square = temp_square
           }
         }
         break
       }
-      state.hovered_file -= 1
+      state.hovered_square >>= 1
     }
   }
 }
 
 increment_rank_move :: proc() {
-  original_rank := state.hovered_rank
-  if state.hovered_rank != 7 {
-    state.hovered_rank += 1
-    for !check_valid_move_or_capture(state.hovered_file, state.hovered_rank) {
-      if state.hovered_rank == 7 {
-        state.hovered_rank = original_rank
-        temp_file, temp_rank := find_closest_move_or_capture('a', 'h', original_rank+1, 7)
+  original_square := state.hovered_square
+  rank := get_rank(original_square)
+  if get_rank(state.hovered_square) != 8 {
+    state.hovered_square >>= 8
+    for !check_valid_move_or_capture(state.hovered_square) {
+      if get_rank(state.hovered_square) == 8 {
+        state.hovered_square = original_square
+        temp_square := find_closest_move_or_capture(1, 8, get_rank(state.hovered_square)+1, 8)
 
-        if temp_file != -1 {
-          if check_valid_move_or_capture(temp_file, temp_rank) {
-            state.hovered_file = temp_file
-            state.hovered_rank = temp_rank
+        if temp_square != 0 {
+          if check_valid_move_or_capture(temp_square) {
+            state.hovered_square = temp_square
           }
         }
         break
       }
-      state.hovered_rank += 1
+      state.hovered_square >>= 8
     }
   }
 }
 
 decrement_rank_move :: proc() {
-  original_rank := state.hovered_rank
-  if state.hovered_rank != 0 {
-    state.hovered_rank -= 1
-    for !check_valid_move_or_capture(state.hovered_file, state.hovered_rank) {
-      if state.hovered_rank == 0 {
-        state.hovered_rank = original_rank
-        temp_file, temp_rank := find_closest_move_or_capture('a', 'h', original_rank-1, 0)
+  original_square := state.hovered_square
+  rank := get_rank(original_square)
+  if get_rank(state.hovered_square) != 1 {
+    state.hovered_square <<= 8
+    for !check_valid_move_or_capture(state.hovered_square) {
+      if get_rank(state.hovered_square) == 1 {
+        state.hovered_square = original_square
+        temp_square := find_closest_move_or_capture(1, 8, get_rank(state.hovered_square)-1, 1)
 
-        if temp_file != -1 {
-          if check_valid_move_or_capture(temp_file, temp_rank) {
-            state.hovered_file = temp_file
-            state.hovered_rank = temp_rank
+        if temp_square != 0 {
+          if check_valid_move_or_capture(temp_square) {
+            state.hovered_square = temp_square
           }
         }
         break
       }
-      state.hovered_rank -= 1
+      state.hovered_square <<= 8
     }
   }
 }
-*/
-find_closest_piece :: proc(start_file, end_file: u8, start_rank, end_rank: u8, colour: Colour) -> (square: u64) {
+
+find_closest_piece :: proc(start_file, end_file, start_rank, end_rank: u8, colour: Colour) -> (square: u64) {
   square_to_check: u64 = 0
 
   squares: [dynamic]u64
@@ -725,86 +538,70 @@ find_closest_piece :: proc(start_file, end_file: u8, start_rank, end_rank: u8, c
   }
   return closest_piece
 }
-/*
-find_closest_move_or_capture :: proc(start_file, end_file: rune, start_rank, end_rank: uint) -> (file: rune, rank: uint) {
-  piece_files := [dynamic]rune{}
-  piece_ranks := [dynamic]uint{}
 
-  for i in 0 ..< len(state.move_option_files) {
-    file := state.move_option_files[i]
-    rank := state.move_option_ranks[i]
+find_closest_move_or_capture :: proc(start_file, end_file, start_rank, end_rank: u8) -> (square: u64) {
+  square_to_check: u64 = 0
 
-    if start_file == end_file {
-      if rank >= start_rank if (start_rank < end_rank) else rank <= start_rank {
-        if file == start_file {
-          append(&piece_files, file)
-          append(&piece_ranks, rank)
-        }
-      }
-    } else if start_rank == end_rank {
-      if file >= start_file if (start_file < end_file) else file <= start_file {
-        if rank == start_rank {
-          append(&piece_files, file)
-          append(&piece_ranks, rank)
-        }
-      }
-    } else {
-      if file >= start_file if (start_file < end_file) else file <= start_file {
-        if rank >= start_rank if (start_rank < end_rank) else rank <= start_rank {
-          append(&piece_files, file)
-          append(&piece_ranks, rank)
-        }
-      }
-    }
+  squares: [dynamic]u64
+  defer delete(squares)
+
+  start_file := start_file
+  end_file := end_file
+  start_rank := start_rank
+  end_rank := end_rank
+
+  if start_file > end_file {
+    temp_file := start_file
+    start_file = end_file
+    end_file = temp_file
   }
 
-  for i in 0 ..< len(state.capture_option_files) {
-    file := state.capture_option_files[i]
-    rank := state.capture_option_ranks[i]
-
-    if start_file == end_file {
-      if rank >= start_rank if (start_rank < end_rank) else rank <= start_rank {
-        if file == start_file {
-          append(&piece_files, file)
-          append(&piece_ranks, rank)
-        }
-      }
-    } else if start_rank == end_rank {
-      if file >= start_file if (start_file < end_file) else file <= start_file {
-        if rank == start_rank {
-          append(&piece_files, file)
-          append(&piece_ranks, rank)
-        }
-      }
-    } else {
-      if file >= start_file if (start_file < end_file) else file <= start_file {
-        if rank >= start_rank if (start_rank < end_rank) else rank <= start_rank {
-          append(&piece_files, file)
-          append(&piece_ranks, rank)
-        }
-      }
-    }
+  if start_rank < end_rank {
+    temp_start := start_rank
+    start_rank = end_rank
+    end_rank = temp_start
   }
 
-  piece_file: rune
-  piece_rank: uint
+  file: u8 = start_file
+  rank: u8 = start_rank
+  start_square := (8 * (8 - start_rank)) + start_file - 1
+  square_to_check |= 1 << start_square
 
+  for rank >= end_rank {
+    if square_to_check & state.move_options != 0 {
+      if square_to_check != state.hovered_square {
+        append(&squares, square_to_check)
+      }
+    }
+    if square_to_check & state.capture_options != 0 {
+      if square_to_check != state.hovered_square {
+        append(&squares, square_to_check)
+      }
+    }
+
+    if file < end_file {
+      file += 1
+      square_to_check <<= 1
+    } else {
+      file = start_file
+      square_to_check <<= 8 - (end_file - start_file)
+      rank -= 1
+    }
+  }
+  
+  closest_piece: u64 = 0
   lowest_dist : f32 = 100
-
-  for i in 0 ..< len(piece_files) {
-    x_dist : f32 = abs(cast(f32)state.hovered_file - cast(f32)piece_files[i])
-    y_dist : f32 = abs(cast(f32)state.hovered_rank - cast(f32)piece_ranks[i])
-    dist := math.sqrt((x_dist * x_dist) + (y_dist * y_dist))
+  
+  for i in 0..< len(squares) {
+    dist := calc_squares_distance(state.hovered_square, squares[i])
 
     if dist < lowest_dist {
-      piece_file = piece_files[i]
-      piece_rank = piece_ranks[i]
+      closest_piece = squares[i]
       lowest_dist = dist
     }
   }
-  if len(piece_files) == 0 {
-    return -1, 0
+  if len(squares) == 0 {
+    return 0
   }
-  return piece_file, piece_rank
+  return closest_piece
 }
-*/

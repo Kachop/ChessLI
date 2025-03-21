@@ -47,49 +47,49 @@ draw_board :: proc(win: ^t.Screen) {
   y: uint = 1
 
   if state.to_move == .WHITE {
-    for i in 0 ..< 64 {
-      to_check: u64 = 1 << cast(u8)i
-      if to_check & state.board.tile_map != 0 {
-        draw_piece(win, x, y, TILE_W)
-      } else {
-        draw_piece(win, x, y, TILE_B)
-      }
-      for type, piece_map in state.board.piece_map {
-        if to_check & piece_map != 0 {
-          if to_check == state.hovered_square {
-            draw_piece(win, x, y, type, 4)
-          } else {
-            draw_piece(win, x, y, type)
-          }
-        }
-      }
-      x += 16
-      if (i + 1) % 8 == 0 {
-        x = 2
-        y += 8
-      }
-    }
+    y = 1
   } else {
     y = 57
-    for i in 0 ..< 64 {
-      to_check: u64 = 1 << cast(u8)i
-      if to_check & state.board.tile_map != 0 {
+  }
+
+  for i in 0 ..< 64 {
+    to_check: u64 = 1 << cast(u8)i
+    if to_check & state.board.tile_map != 0 {
+      if to_check & state.capture_options != 0 {
+        draw_piece(win, x, y, TILE_W, 4)
+      } else if to_check & state.move_options != 0 {
+        draw_piece(win, x, y, TILE_W, 5)
+      } else {
         draw_piece(win, x, y, TILE_W)
+      }
+    } else {
+      if to_check & state.capture_options != 0 {
+        draw_piece(win, x, y, TILE_B, 4)
+      } else if to_check & state.move_options != 0 {
+        draw_piece(win, x, y, TILE_B, 5)
       } else {
         draw_piece(win, x, y, TILE_B)
       }
-      for type, piece_map in state.board.piece_map {
-        if to_check & piece_map != 0 {
-          if to_check == state.hovered_square {
-            draw_piece(win, x, y, type, 4)
-          } else {
-            draw_piece(win, x, y, type)
-          }
+    }
+    for type, piece_map in state.board.piece_map {
+      if to_check & state.hovered_square & state.capture_options != 0 {
+        draw_piece(win, x, y, state.selected_piece)
+      } else if to_check & state.hovered_square & state.move_options != 0 {
+        draw_piece(win, x, y, state.selected_piece, 4)
+      } else if to_check & piece_map != 0 {
+        if to_check & state.hovered_square != 0 {
+          draw_piece(win, x, y, type, 4)
+        } else {
+          draw_piece(win, x, y, type)
         }
       }
-      x += 16
-      if (i + 1) % 8 == 0 {
-        x = 2
+    }
+    x += 16
+    if (i + 1) % 8 == 0 {
+      x = 2
+      if state.to_move == .WHITE {
+        y += 8
+      } else {
         y -= 8
       }
     }
@@ -120,15 +120,24 @@ get_rank :: proc(square: u64) -> u8 {
   return rank
 }
 
+get_piece :: proc(square: u64) -> PieceInfo {
+  for piece, piece_map in state.board.piece_map {
+    if square & piece_map != 0 {
+      return piece
+    }
+  }
+  return PieceInfo{}
+}
+
 calc_squares_distance :: proc(square1, square2: u64) -> f32 {
   square_1_file, square_1_rank: u8
   square_2_file, square_2_rank: u8
 
-  file, rank: u8
+  file, rank: u8 = 1, 1
 
   to_check: u64 = 1
 
-  for i in 0 ..< 64 {
+  for i in 1 ..= 64 {
     if to_check & square1 != 0 {
       square_1_file = file
       square_1_rank = rank
@@ -408,14 +417,8 @@ check_square_for_piece :: proc(square: u64, colour: Colour) -> bool {
 }
 
 check_valid_move_or_capture :: proc(square: u64) -> bool {
-  if square < 0 || square > 63 {
-    return false
-  }
-  for i in 0 ..< len(state.move_option_files) {
-  }
-
-  for i in 0 ..< len(state.capture_option_files) {
+  if square & (state.move_options | state.capture_options) != 0 {
+    return true
   }
   return false
 }
-
