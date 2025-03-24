@@ -23,14 +23,14 @@ ranks_num :: ranks_num_set{1, 2, 3, 4, 5, 6, 7, 8}
 Returns all combined positions of the white pieces
 */
 
-get_white_pieces :: proc() -> u64 {
+get_white_pieces :: proc(board: map[PieceInfo]u64 = state.board.piece_map) -> u64 {
   positions: u64 = 0
-  positions |= state.board.piece_map[PAWN_W]
-  positions |= state.board.piece_map[KNIGHT_W]
-  positions |= state.board.piece_map[BISHOP_W]
-  positions |= state.board.piece_map[ROOK_W]
-  positions |= state.board.piece_map[QUEEN_W]
-  positions |= state.board.piece_map[KING_W]
+  positions |= board[PAWN_W]
+  positions |= board[KNIGHT_W]
+  positions |= board[BISHOP_W]
+  positions |= board[ROOK_W]
+  positions |= board[QUEEN_W]
+  positions |= board[KING_W]
   return positions
 }
 
@@ -38,20 +38,20 @@ get_white_pieces :: proc() -> u64 {
 Returns all combined positions of the black pieces
 */
 
-get_black_pieces :: proc() -> u64 {
+get_black_pieces :: proc(board: map[PieceInfo]u64 = state.board.piece_map) -> u64 {
   positions: u64 = 0
-  positions |= state.board.piece_map[PAWN_B]
-  positions |= state.board.piece_map[KNIGHT_B]
-  positions |= state.board.piece_map[BISHOP_B]
-  positions |= state.board.piece_map[ROOK_B]
-  positions |= state.board.piece_map[QUEEN_B]
-  positions |= state.board.piece_map[KING_B]
+  positions |= board[PAWN_B]
+  positions |= board[KNIGHT_B]
+  positions |= board[BISHOP_B]
+  positions |= board[ROOK_B]
+  positions |= board[QUEEN_B]
+  positions |= board[KING_B]
   return positions
 }
 
-get_empty_squares :: proc() -> u64 {
+get_empty_squares :: proc(board: map[PieceInfo]u64 = state.board.piece_map) -> u64 {
   positions: u64 = 0
-  positions |= (~get_white_pieces() & (~get_black_pieces()))
+  positions |= (~get_white_pieces(board) & (~get_black_pieces(board)))
   return positions
 }
 
@@ -59,44 +59,44 @@ get_empty_squares :: proc() -> u64 {
 Based on the currently selected piece find possible moves and captures.
 All available moves pre-calculated. This narrows down the moves and finds the captures.
 */
-get_pawn_moves_and_captures :: proc(square: u64 = state.selected_square, colour: Colour = state.to_move) {
+get_pawn_moves_and_captures :: proc(board: map[PieceInfo]u64 = state.board.piece_map, square: u64 = state.selected_square, colour: Colour = state.to_move) {
   if colour == .WHITE {
-    if get_empty_squares() & (square >> 8) != 0 {
-      state.move_options |= PAWN_MOVES_W[square_to_index(square)] & get_empty_squares()
+    if get_empty_squares(board) & (square >> 8) != 0 {
+      state.move_options |= PAWN_MOVES_W[square_to_index(square)] & get_empty_squares(board)
     }
-    black_pieces := get_black_pieces()
+    black_pieces := get_black_pieces(board)
     state.capture_options |= black_pieces & (square >> 9)
     state.capture_options |= black_pieces & (square >> 7)
   } else {
-    if get_empty_squares() & (square << 8) != 0 {
-      state.move_options |= PAWN_MOVES_B[square_to_index(square)] & get_empty_squares()
+    if get_empty_squares(board) & (square << 8) != 0 {
+      state.move_options |= PAWN_MOVES_B[square_to_index(square)] & get_empty_squares(board)
     }
-    white_pieces := get_white_pieces()
+    white_pieces := get_white_pieces(board)
     state.capture_options |= white_pieces & (square << 9)
     state.capture_options |= white_pieces & (square << 7)
   }
 }
 
-get_knight_moves_and_captures :: proc(square: u64 = state.selected_square, colour: Colour = state.to_move) {
-  state.move_options |= KNIGHT_MOVES[square_to_index(square)] & get_empty_squares()
+get_knight_moves_and_captures :: proc(board: map[PieceInfo]u64 = state.board.piece_map, square: u64 = state.selected_square, colour: Colour = state.to_move) {
+  state.move_options |= KNIGHT_MOVES[square_to_index(square)] & get_empty_squares(board)
   if colour == .WHITE {
-    state.capture_options |= KNIGHT_MOVES[square_to_index(square)] & get_black_pieces()
+    state.capture_options |= KNIGHT_MOVES[square_to_index(square)] & get_black_pieces(board)
   } else {
-    state.capture_options |= KNIGHT_MOVES[square_to_index(square)] & get_white_pieces()
+    state.capture_options |= KNIGHT_MOVES[square_to_index(square)] & get_white_pieces(board)
   }
 }
 
-get_bishop_moves_and_captures :: proc(square: u64 = state.selected_square, colour: Colour = state.to_move) {
+get_bishop_moves_and_captures :: proc(board: map[PieceInfo]u64 = state.board.piece_map, square: u64 = state.selected_square, colour: Colour = state.to_move) {
   blocked_UL: bool
   blocked_UR: bool
   blocked_DR: bool
   blocked_DL: bool
 
-  state.move_options |= BISHOP_MOVES[square_to_index(square)] & get_empty_squares()
+  state.move_options |= BISHOP_MOVES[square_to_index(square)] & get_empty_squares(board)
   if colour == .WHITE {
-    state.capture_options |= BISHOP_MOVES[square_to_index(square)] & get_black_pieces()
+    state.capture_options |= BISHOP_MOVES[square_to_index(square)] & get_black_pieces(board)
   } else {
-    state.capture_options |= BISHOP_MOVES[square_to_index(square)] & get_white_pieces()
+    state.capture_options |= BISHOP_MOVES[square_to_index(square)] & get_white_pieces(board)
   }
   for i in 1 ..< 8 {
     if blocked_UL {
@@ -131,17 +131,17 @@ get_bishop_moves_and_captures :: proc(square: u64 = state.selected_square, colou
   }
 }
 
-get_rook_moves_and_captures :: proc(square: u64 = state.selected_square, colour: Colour = state.to_move) {
+get_rook_moves_and_captures :: proc(board: map[PieceInfo]u64 = state.board.piece_map, square: u64 = state.selected_square, colour: Colour = state.to_move) {
   blocked_U: bool
   blocked_R: bool
   blocked_D: bool
   blocked_L: bool
 
-  state.move_options |= ROOK_MOVES[square_to_index(square)] & get_empty_squares()
+  state.move_options |= ROOK_MOVES[square_to_index(square)] & get_empty_squares(board)
   if colour == .WHITE {
-    state.capture_options |= ROOK_MOVES[square_to_index(square)] & get_black_pieces()
+    state.capture_options |= ROOK_MOVES[square_to_index(square)] & get_black_pieces(board)
   } else {
-    state.capture_options |= ROOK_MOVES[square_to_index(square)] & get_white_pieces()
+    state.capture_options |= ROOK_MOVES[square_to_index(square)] & get_white_pieces(board)
   }
   for i in 1 ..< 8 {
     if blocked_U {
@@ -176,7 +176,7 @@ get_rook_moves_and_captures :: proc(square: u64 = state.selected_square, colour:
   }
 }
 
-get_queen_moves_and_captures :: proc(square: u64 = state.selected_square, colour: Colour = state.to_move) {
+get_queen_moves_and_captures :: proc(board: map[PieceInfo]u64 = state.board.piece_map, square: u64 = state.selected_square, colour: Colour = state.to_move) {
   blocked_U: bool
   blocked_R: bool
   blocked_D: bool
@@ -187,11 +187,11 @@ get_queen_moves_and_captures :: proc(square: u64 = state.selected_square, colour
   blocked_DR: bool
   blocked_DL: bool
   
-  state.move_options |= QUEEN_MOVES[square_to_index(square)] & get_empty_squares()
+  state.move_options |= QUEEN_MOVES[square_to_index(square)] & get_empty_squares(board)
   if colour == .WHITE {
-    state.capture_options |= QUEEN_MOVES[square_to_index(square)] & get_black_pieces()
+    state.capture_options |= QUEEN_MOVES[square_to_index(square)] & get_black_pieces(board)
   } else {
-    state.capture_options |= QUEEN_MOVES[square_to_index(square)] & get_white_pieces()
+    state.capture_options |= QUEEN_MOVES[square_to_index(square)] & get_white_pieces(board)
   }
   file := get_file(square)
   loop_limit_L := 7 if (file == 8) else 6
@@ -259,12 +259,68 @@ get_queen_moves_and_captures :: proc(square: u64 = state.selected_square, colour
   } 
 }
 
-get_king_moves_and_captures :: proc(square: u64 = state.selected_square, colour: Colour = state.to_move) {
-  state.move_options |= KING_MOVES[square_to_index(square)] & get_empty_squares()
+get_king_moves_and_captures :: proc(board: map[PieceInfo]u64 = state.board.piece_map, square: u64 = state.selected_square, colour: Colour = state.to_move) {
+  empty_squares := get_empty_squares(board)
+  state.move_options |= KING_MOVES[square_to_index(square)] & empty_squares
   if colour == .WHITE {
-    state.capture_options |= KING_MOVES[square_to_index(square)] & get_black_pieces()
+    state.capture_options |= KING_MOVES[square_to_index(square)] & get_black_pieces(board)
+    if state.can_castle_white_qs {
+      if (empty_squares & (1 << 57) != 0) && (empty_squares & (1 << 58) != 0) && (empty_squares & (1 << 59) != 0) {
+        temp_board := make(map[PieceInfo]u64)
+        defer delete(temp_board)
+        copy_board(&temp_board, state.board.piece_map)
+
+        temp_board[KING_W] ~= (1 << 59)
+        temp_board[KING_W] ~= (1 << 58)
+        temp_board[KING_W] ~= (1 << 57)
+        if !is_check(temp_board, .WHITE) {
+          state.move_options |= (1 << 58)
+        }
+      }
+    }
+    if state.can_castle_white_ks {
+      if (empty_squares & (1 << 61) != 0) && (empty_squares & (1 << 62) != 0) {
+        temp_board := make(map[PieceInfo]u64)
+        defer delete(temp_board)
+        copy_board(&temp_board, state.board.piece_map)
+
+        temp_board[KING_W] ~= (1 << 61)
+        temp_board[KING_W] ~= (1 << 62)
+        if !is_check(temp_board, .WHITE) {
+          state.move_options |= (1 << 62)
+        }
+      }
+    }
   } else {
-    state.capture_options |= KING_MOVES[square_to_index(square)] & get_white_pieces()
+    state.capture_options |= KING_MOVES[square_to_index(square)] & get_white_pieces(board)
+    if state.can_castle_black_qs {
+      if (empty_squares & (1 << 1) != 0) && (empty_squares & (1 << 2) != 0) && (empty_squares & (1 << 3) != 0) {
+        temp_board := make(map[PieceInfo]u64)
+        defer delete(temp_board)
+        copy_board(&temp_board, state.board.piece_map)
+
+        temp_board[KING_W] ~= (1 << 1)
+        temp_board[KING_W] ~= (1 << 2)
+        temp_board[KING_W] ~= (1 << 3)
+        if !is_check(temp_board, .BLACK) {
+          state.move_options |= (1 << 2)
+        }
+      }
+    }
+    if state.can_castle_black_ks {
+      if (empty_squares & (1 << 5) != 0) && (empty_squares & (1 << 6) != 0) {
+        temp_board := make(map[PieceInfo]u64)
+        defer delete(temp_board)
+        copy_board(&temp_board, state.board.piece_map)
+
+        temp_board[KING_W] ~= (1 << 5)
+        temp_board[KING_W] ~= (1 << 6)
+        if !is_check(temp_board, .BLACK) {
+          state.move_options |= (1 << 6)
+        }
+      }
+    }
+
   }
 }
 /*
@@ -274,6 +330,8 @@ If one of those avaialble captures is the king then returns true. If not returns
 */
 
 is_check :: proc(board: map[PieceInfo]u64 = state.board.piece_map, colour: Colour = state.to_move) -> bool {
+  saved_moves := state.move_options
+  saved_captures := state.capture_options
   state.capture_options = 0
   state.move_options = 0
   to_check: u64 = 1
@@ -284,19 +342,19 @@ is_check :: proc(board: map[PieceInfo]u64 = state.board.piece_map, colour: Colou
         if piece_map & to_check != 0 {
           #partial switch piece_info.piece {
           case .PAWN:
-            get_pawn_moves_and_captures(to_check, .WHITE if colour == .BLACK else .BLACK)
+            get_pawn_moves_and_captures(board, to_check, .WHITE if colour == .BLACK else .BLACK)
           case .KNIGHT:
-            get_knight_moves_and_captures(to_check, .WHITE if colour == .BLACK else .BLACK)
+            get_knight_moves_and_captures(board, to_check, .WHITE if colour == .BLACK else .BLACK)
           case .BISHOP:
-            get_bishop_moves_and_captures(to_check, .WHITE if colour == .BLACK else .BLACK)
+            get_bishop_moves_and_captures(board, to_check, .WHITE if colour == .BLACK else .BLACK)
           case .ROOK:
-            get_rook_moves_and_captures(to_check, .WHITE if colour == .BLACK else .BLACK)
+            get_rook_moves_and_captures(board, to_check, .WHITE if colour == .BLACK else .BLACK)
           case .QUEEN:
-            get_queen_moves_and_captures(to_check, .WHITE if colour == .BLACK else .BLACK)
+            get_queen_moves_and_captures(board, to_check, .WHITE if colour == .BLACK else .BLACK)
           }
-          if state.capture_options & state.board.piece_map[KING_W if colour == .WHITE else KING_B] != 0 {
-            state.move_options = 0
-            state.capture_options = 0
+          if state.capture_options & board[KING_W if colour == .WHITE else KING_B] != 0 {
+            state.move_options = saved_moves
+            state.capture_options = saved_captures
             return true
           }
           state.move_options = 0
@@ -306,6 +364,8 @@ is_check :: proc(board: map[PieceInfo]u64 = state.board.piece_map, colour: Colou
     }
     to_check <<= 1
   }
+  state.move_options = saved_moves
+  state.capture_options = saved_captures
   return false
 }
 
@@ -325,6 +385,8 @@ check_moves_and_captures :: proc(piece_info: PieceInfo, to_move_from: u64) -> bo
       state.board.piece_map[piece_info] ~= to_move_to
       if !is_check(colour=piece_info.colour) {
         copy_board(&state.board.piece_map, original_board)
+        state.move_options = 0
+        state.capture_options = 0
         return false
       }
       copy_board(&state.board.piece_map, original_board)
@@ -348,12 +410,16 @@ check_moves_and_captures :: proc(piece_info: PieceInfo, to_move_from: u64) -> bo
       }
       if !is_check(colour=piece_info.colour) {
         copy_board(&state.board.piece_map, original_board)
+        state.move_options = 0
+        state.capture_options = 0
         return false
       }
       copy_board(&state.board.piece_map, original_board)
     }
     to_move_to <<= 1
   }
+  state.move_options = 0
+  state.capture_options = 0
   return true
 }
 
@@ -376,32 +442,32 @@ is_checkmate :: proc(colour: Colour = state.to_move) -> bool {
           state.capture_options = 0
           #partial switch piece_info.piece {
           case .PAWN:
-            get_pawn_moves_and_captures(to_check, colour)
+            get_pawn_moves_and_captures(square=to_check, colour=colour)
             if !check_moves_and_captures(piece_info, to_check) {
               return false
             }
           case .KNIGHT:
-            get_knight_moves_and_captures(to_check, colour)
+            get_knight_moves_and_captures(square=to_check, colour=colour)
             if !check_moves_and_captures(piece_info, to_check) {
               return false
             }
           case .BISHOP:
-            get_bishop_moves_and_captures(to_check, colour)
+            get_bishop_moves_and_captures(square=to_check, colour=colour)
             if !check_moves_and_captures(piece_info, to_check) {
               return false
             }
           case .ROOK:
-            get_rook_moves_and_captures(to_check, colour)
+            get_rook_moves_and_captures(square=to_check, colour=colour)
             if !check_moves_and_captures(piece_info, to_check) {
               return false
             }
           case .QUEEN:
-            get_queen_moves_and_captures(to_check, colour)
+            get_queen_moves_and_captures(square=to_check, colour=colour)
             if !check_moves_and_captures(piece_info, to_check) {
               return false
             }
           case .KING:
-            get_king_moves_and_captures(to_check, colour)
+            get_king_moves_and_captures(square=to_check, colour=colour)
             if !check_moves_and_captures(piece_info, to_check) {
               return false
             }

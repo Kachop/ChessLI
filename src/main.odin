@@ -104,7 +104,7 @@ main :: proc() {
   t.set_term_mode(&s, .Restored)
   state.board.piece_map[PAWN_B] ~= (1 << 18)
   state.board.piece_map[PAWN_B] ~= (1 << 10)
-  get_bishop_moves_and_captures((1 << 25), .WHITE)
+  get_bishop_moves_and_captures(square=(1 << 25), colour=.WHITE)
   fmt.println(state.capture_options)
 }
 
@@ -266,6 +266,61 @@ handle_move_input :: proc(key: t.Key) {
         break
       } else {
         state.check = false
+        state.move_options = 0
+        state.capture_options = 0
+      }
+
+      //Moves that stop future castling
+      if state.selected_piece == KING_W {
+        state.can_castle_white_qs = false
+        state.can_castle_white_ks = false
+      } else if state.selected_piece == KING_B {
+        state.can_castle_black_qs = false
+        state.can_castle_black_ks = false
+      }
+
+      if state.selected_piece == ROOK_W {
+        if state.selected_square == (1 << 56) {
+          state.can_castle_white_qs = false
+        } else if state.selected_square == (1 << 63) {
+          state.can_castle_white_ks = false
+        }
+      } else if state.selected_piece == ROOK_B {
+        if state.selected_square == (1) {
+          state.can_castle_black_qs = false
+        } else if state.selected_square == (1 << 7) {
+          state.can_castle_black_ks = false
+        }
+      }
+
+      //Castling
+      if state.to_move == .WHITE {
+        if state.selected_piece == KING_W && state.hovered_square == (1 << 58) {
+          state.board.piece_map[ROOK_W] ~= (1 << 56)
+          state.board.piece_map[ROOK_W] ~= (1 << 59)
+        } else if state.selected_piece == KING_W && state.hovered_square == (1 << 62) {
+          state.board.piece_map[ROOK_W] ~= (1 << 63)
+          state.board.piece_map[ROOK_W] ~= (1 << 61)
+        }
+      } else {
+        if state.selected_piece == KING_B && state.hovered_square == (1 << 2) {
+          state.board.piece_map[ROOK_W] ~= (1)
+          state.board.piece_map[ROOK_W] ~= (1 << 3)
+        } else if state.selected_piece == KING_B && state.hovered_square == (1 << 6) {
+          state.board.piece_map[ROOK_W] ~= (1 << 7)
+          state.board.piece_map[ROOK_W] ~= (1 << 6)
+        }
+      }
+
+      //Pawn promotion
+      if state.to_move == .WHITE {
+        if state.board.piece_map[PAWN_W] & ((1) | (1 << 1) | (1 << 2) | (1 << 3) | (1 << 4) | (1 << 5) | (1 << 6) | (1 << 7)) != 0 {
+          handle_promotion_input()
+        }
+      } else {
+        if state.board.piece_map[PAWN_B] & ((1 << 56) | (1 << 57) | (1 << 58) | (1 << 59) | (1 << 60) | (1 << 61) | (1 << 62) | (1 << 63)) != 0 {
+          handle_promotion_input()
+        }
       }
 
       if is_check(colour =.WHITE if state.to_move == .BLACK else .BLACK) {
@@ -303,7 +358,7 @@ handle_move_input :: proc(key: t.Key) {
     state.selected_piece = PieceInfo{}
   }
 }
-/*
+
 handle_promotion_input :: proc() {
   input, has_input := t.read(&s)
   keys := t.parse_keyboard_input(input)
@@ -311,6 +366,10 @@ handle_promotion_input :: proc() {
   promotion_options_w := []PieceInfo{QUEEN_W, ROOK_W, BISHOP_W, KNIGHT_W}
   promotion_options_b := []PieceInfo{QUEEN_B, ROOK_B, BISHOP_B, KNIGHT_B}
   selected_piece_index := 0
+  
+  state.board.piece_map[PAWN_W if state.to_move == .WHITE else PAWN_B] ~= state.hovered_square
+  state.board.piece_map[promotion_options_w[selected_piece_index] if state.to_move == .WHITE else promotion_options_b[selected_piece_index]] ~= state.hovered_square
+
   for !promotion_handled {
     defer t.blit_screen(&s)
     t.clear_screen(&s, .Everything)
@@ -321,24 +380,22 @@ handle_promotion_input :: proc() {
       if selected_piece_index == len(promotion_options_w) {
         selected_piece_index = 0
       }
-      for file := 'a'; file <= 'h'; file += 1 {
-        for rank: uint = 0; rank <= 7; rank += 1 {
-          if file == state.hovered_file && rank == state.hovered_rank {
-            if state.to_move == .WHITE {
-              state.board.piece_map[state.hovered_file][state.hovered_rank] = promotion_options_w[selected_piece_index]
-            } else {
-              state.board.piece_map[state.hovered_file][state.hovered_rank] = promotion_options_b[selected_piece_index]
-            }
-          }
+      if state.to_move == .WHITE {
+        if selected_piece_index > 0 {
+          state.board.piece_map[promotion_options_w[selected_piece_index-1]] ~= state.hovered_square
+        } else {
+          state.board.piece_map[promotion_options_w[len(promotion_options_w)-1]] ~= state.hovered_square
         }
+        state.board.piece_map[promotion_options_w[selected_piece_index]] ~= state.hovered_square
+      } else {
+        if selected_piece_index > 0 {
+          state.board.piece_map[promotion_options_b[selected_piece_index-1]] ~= state.hovered_square
+        } else {
+          state.board.piece_map[promotion_options_b[len(promotion_options_w)-1]] ~= state.hovered_square
+        }
+        state.board.piece_map[promotion_options_b[selected_piece_index]] ~= state.hovered_square
       }
     case .Enter:
-      //Select piece and finish move
-      if state.to_move == .WHITE {
-        //state.board.piece_map[state.hovered_file][state.hovered_rank] = promotion_options_w[selected_piece_index]
-      } else {
-        //state.board.piece_map[state.hovered_file][state.hovered_rank] = promotion_options_b[selected_piece_index]
-      }
       promotion_handled = true
     }
     input, has_input = t.read(&s)
@@ -346,7 +403,7 @@ handle_promotion_input :: proc() {
     draw_board(&s)
   }
 }
-*/
+
 increment_file_selected :: proc() {
   original_square := state.hovered_square
   file := get_file(original_square)
@@ -539,7 +596,7 @@ find_closest_piece :: proc(start_file, end_file, start_rank, end_rank: u8, colou
   start_square := (8 * (8 - start_rank)) + start_file - 1
   square_to_check |= 1 << start_square
 
-  for file <= end_file && rank >= end_rank {
+  for rank >= end_rank {
     piece_loop: for piece, piece_map in state.board.piece_map {
       if square_to_check & piece_map != 0 && piece.colour == colour {
         if square_to_check != state.hovered_square {
@@ -548,14 +605,14 @@ find_closest_piece :: proc(start_file, end_file, start_rank, end_rank: u8, colou
         }
       }
     }
-    file += 1
-
-    if file > 8 {
-      file = start_file
-      square_to_check <<= start_file
-      rank -= 1
-    } else {
+    
+    if file < end_file {
+      file += 1
       square_to_check <<= 1
+    } else {
+      file = start_file
+      square_to_check <<= 8 - (end_file - start_file)
+      rank -= 1
     }
   }
   
