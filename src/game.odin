@@ -67,6 +67,18 @@ get_pawn_moves_and_captures :: proc(board: map[PieceInfo]u64 = state.board.piece
     black_pieces := get_black_pieces(board)
     state.capture_options |= black_pieces & (square >> 9)
     state.capture_options |= black_pieces & (square >> 7)
+    if get_rank(square) == 5 && state.last_move.piece == .PAWN {
+      file_diff: i8 = cast(i8)state.last_move.start_file - cast(i8)get_file(square)
+      if file_diff == 1 || file_diff == -1 {
+        if state.last_move.start_rank == 7 && state.last_move.end_rank == 5 {
+          if file_diff == -1 {
+            state.capture_options |= square >> 9
+          } else {
+            state.capture_options |= square >> 7
+          }
+        }
+      }
+    }
   } else {
     if get_empty_squares(board) & (square << 8) != 0 {
       state.move_options |= PAWN_MOVES_B[square_to_index(square)] & get_empty_squares(board)
@@ -74,6 +86,18 @@ get_pawn_moves_and_captures :: proc(board: map[PieceInfo]u64 = state.board.piece
     white_pieces := get_white_pieces(board)
     state.capture_options |= white_pieces & (square << 9)
     state.capture_options |= white_pieces & (square << 7)
+    if get_rank(square) == 4 && state.last_move.piece == .PAWN {
+      file_diff: i8 = cast(i8)state.last_move.start_file - cast(i8)get_file(square)
+      if file_diff == 1 || file_diff == -1 {
+        if state.last_move.start_rank == 2 && state.last_move.end_rank == 4 {
+          if file_diff == -1 {
+            state.capture_options |= square << 7
+          } else {
+            state.capture_options |= square << 9
+          }
+        }
+      }
+    }
   }
 }
 

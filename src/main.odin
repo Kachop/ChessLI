@@ -234,6 +234,18 @@ handle_move_input :: proc(key: t.Key) {
     defer delete(saved_board)
     copy_board(&saved_board, state.board.piece_map)
 
+    if state.selected_piece.piece == .PAWN {
+      if get_file(state.hovered_square) != get_file(state.selected_square) {
+        if get_empty_squares() & state.hovered_square != 0 {
+          if state.to_move == .WHITE {
+            state.board.piece_map[PAWN_B] ~= state.hovered_square << 8
+          } else {
+            state.board.piece_map[PAWN_W] ~= state.hovered_square >> 8
+          }
+        }
+      }
+    }
+
     if state.hovered_square != state.selected_square {
       state.board.piece_map[state.selected_piece] ~= state.selected_square
       state.board.piece_map[state.selected_piece] ~= state.hovered_square
@@ -344,6 +356,7 @@ handle_move_input :: proc(key: t.Key) {
       }
     }
     state.mode = .SELECT
+    state.last_move = Move{state.selected_piece.piece, get_file(state.selected_square), get_file(state.hovered_square), get_rank(state.selected_square), get_rank(state.hovered_square)}
     state.move_options = 0
     state.capture_options = 0
     state.selected_square = 0

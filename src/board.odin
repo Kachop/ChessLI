@@ -26,10 +26,10 @@ Board :: struct {
 
 Move :: struct {
   piece: Piece,
-  start_file: rune,
-  end_file: rune,
-  start_rank: uint,
-  end_rank: uint,
+  start_file: u8,
+  end_file: u8,
+  start_rank: u8,
+  end_rank: u8,
 }
 
 draw_board :: proc(win: ^t.Screen) {
