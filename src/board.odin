@@ -19,14 +19,6 @@ RANK_6 :: 2
 RANK_7 :: 1
 RANK_8 :: 0
 
-ranks := [8]i32{RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8}
-/*
-Board :: struct {
-    tile_map: map[rune][8]PieceInfo,
-    piece_map: map[rune][dynamic]PieceInfo,
-}
-*/
-
 Board :: struct {
   tile_map: u64,
   piece_map: map[PieceInfo]u64
@@ -158,171 +150,7 @@ calc_squares_distance :: proc(square1, square2: u64) -> f32 {
   dist := math.sqrt((x_dist * x_dist) + (y_dist * y_dist))
   return dist
 }
-/*
-draw_board :: proc(win: ^t.Screen) {
-  old_allocator := context.allocator
-  context.allocator = context.temp_allocator
-  x : uint = 2
-  y : uint = 1
 
-  if state.to_move == .WHITE {
-    //Draw tiles
-    for file in 'a' ..= 'h' {
-      rank := state.board.tile_map[file]
-      y = 1
-      for index := 7; index >= 0; index -= 1 {
-        tile := rank[index]
-        piece := state.board.piece_map[file][index]
-        draw_piece(win, x, y, tile)
-        draw_piece(win, x, y, piece)
-
-        y += 8
-      }
-      x += 16
-    }
-    if state.mode == .SELECT { 
-      x = 2
-      y = 1
-
-      for file in 'a' ..= 'h' {
-        //Draw pieces
-        rank := state.board.piece_map[file]
-        y = 1
-        for index := 7; index >= 0; index -= 1 {
-          piece := rank[index]
-          if file == state.hovered_file && cast(uint)index == state.hovered_rank {
-            draw_piece(win, x, y, piece, 4)
-          }
-          y += 8
-        }
-        x += 16
-      }
-    } else if state.mode == .MOVE {
-      x = 2
-      y = 1
-
-      for file in 'a' ..= 'h' {
-        rank := state.board.tile_map[file]
-        y = 1
-        for index := 7; index >= 0; index -= 1 {
-          piece := rank[index]
-          for i in 0 ..< len(state.move_option_files) {
-            if file == state.move_option_files[i] && cast(uint)index == state.move_option_ranks[i] {
-              draw_piece(win, x, y, piece, 5)
-            }
-          }
-          for i in 0 ..< len(state.capture_option_files) {
-            if file == state.capture_option_files[i] && cast(uint)index == state.capture_option_ranks[i] {
-              tile := state.board.tile_map[file][index]
-              draw_piece(win, x, y, tile, 4)
-              piece := state.board.piece_map[file][index]
-              draw_piece(win, x, y, piece)
-            }
-          }
-          y += 8
-        }
-        x += 16
-      }
-      x = 2
-      y = 1
-
-      for file in 'a' ..= 'h' {
-        rank := state.board.piece_map[file]
-        y = 1
-        for index := 7; index >= 0; index -= 1 {
-          piece := rank[index]
-          if file == state.selected_file && cast(uint)index == state.selected_rank {
-            draw_piece(win, x, y, piece, 4)
-          }
-          if file == state.hovered_file && cast(uint)index == state.hovered_rank {
-            draw_piece(win, x, y, state.board.piece_map[state.selected_file][state.selected_rank])
-          }
-          y += 8
-        }
-        x += 16
-      }
-    }
-  } else {
-    //Draw tiles and pieces
-    for file := 'h'; file >= 'a'; file -= 1 {
-      rank := state.board.tile_map[file]
-      y = 1
-      for index := 0; index <= 7; index += 1 {
-        tile := rank[index]
-        piece := state.board.piece_map[file][index]
-        draw_piece(win, x, y, tile)
-        draw_piece(win, x, y, piece)
-
-        y += 8
-      }
-      x += 16
-    }
-    if state.mode == .SELECT {
-      x = 2
-      y = 1
-
-      for file := 'h'; file >= 'a'; file -= 1 {
-        rank := state.board.piece_map[file]
-        y = 1
-        for index := 0; index <= 7; index += 1 {
-          piece := rank[index]
-          if file == state.hovered_file && cast(uint)index == state.hovered_rank {
-            draw_piece(win, x, y, piece, 4)
-          }
-          y += 8
-        }
-        x += 16
-      }
-    } else if state.mode == .MOVE {
-      x = 2
-      y = 1
-
-      for file := 'h'; file >= 'a'; file -= 1 {
-        rank := state.board.tile_map[file]
-        y = 1
-        for index := 0; index <= 7; index += 1 {
-          piece := rank[index]
-          for i in 0 ..< len(state.move_option_files) {
-            if file == state.move_option_files[i] && cast(uint)index == state.move_option_ranks[i] {
-              draw_piece(win, x, y, piece, 5)
-            }
-          }
-          for i in 0 ..< len(state.capture_option_files) {
-            if file == state.capture_option_files[i] && cast(uint)index == state.capture_option_ranks[i] {
-              tile := state.board.tile_map[file][index]
-              draw_piece(win, x, y, tile, 4)
-              piece := state.board.piece_map[file][index]
-              draw_piece(win, x, y, piece)
-            }
-          }
-          y += 8
-        }
-        x += 16
-      }
-
-      x = 2
-      y = 1
-
-      for file := 'h'; file >= 'a'; file -= 1 {
-        rank := state.board.piece_map[file]
-        y = 1
-        for index := 0; index <= 7; index += 1 {
-          piece := rank[index]
-          if file == state.selected_file && cast(uint)index == state.selected_rank {
-            draw_piece(win, x, y, piece, 4)
-          }
-          if file == state.hovered_file && cast(uint)index == state.hovered_rank {
-            draw_piece(win, x, y, state.board.piece_map[state.selected_file][state.selected_rank])
-          }
-          y += 8
-        }
-        x += 16
-      }
-    }
-  }
-  context.allocator = old_allocator
-}
-*/
 getDefaultBoard :: proc() -> Board {
   old_allocator := context.temp_allocator
   context.temp_allocator = context.allocator
@@ -393,20 +221,13 @@ getDefaultBoard :: proc() -> Board {
   context.temp_allocator = old_allocator
   return board
 }
-/*
-copy_board :: proc(copy_to: ^map[rune][dynamic]PieceInfo, copy_from: map[rune][dynamic]PieceInfo) {
-  old_allocator := context.temp_allocator
-  context.temp_allocator = context.allocator
 
-  for file := 'a'; file <= 'h'; file += 1 {
-    copy_to[file] = [dynamic]PieceInfo{PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}, PieceInfo{}}
-    for rank := 0; rank <= 7; rank += 1 {
-      copy_to[file][rank] = copy_from[file][rank]
-    }
+copy_board :: proc(copy_to: ^map[PieceInfo]u64, copy_from: map[PieceInfo]u64) {
+  for piece_info, piece_map in copy_from {
+    copy_to[piece_info] = piece_map
   }
-  context.temp_allocator = old_allocator
 }
-*/
+
 check_square_for_piece :: proc(square: u64, colour: Colour) -> bool {
   for piece, piece_map in state.board.piece_map {
     if piece_map & square != 0  && piece.colour == colour{

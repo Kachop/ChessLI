@@ -102,8 +102,10 @@ main :: proc() {
   free_all(context.temp_allocator)
   t.hide_cursor(false)
   t.set_term_mode(&s, .Restored)
-  test: u64 = 1
-  fmt.println(test << 75)
+  state.board.piece_map[PAWN_B] ~= (1 << 18)
+  state.board.piece_map[PAWN_B] ~= (1 << 10)
+  get_bishop_moves_and_captures((1 << 25), .WHITE)
+  fmt.println(state.capture_options)
 }
 
 draw_info :: proc(win: ^t.Screen) {
@@ -127,11 +129,19 @@ draw_info :: proc(win: ^t.Screen) {
   y += 1
 
   t.move_cursor(win, y, x)
-//  t.write(win, fmt.aprintf("Selected file: %v", state.selected_file))
+  //t.write(win, fmt.aprintf("Selected file: %v", state.selected_file))
   y += 1
 
   t.move_cursor(win, y, x)
 //  t.write(win, fmt.aprintf("Selected rank: %v", state.selected_rank))
+  y += 1
+
+  t.move_cursor(win, y, x)
+  t.write(win, fmt.aprintf("Move options: %v", state.move_options))
+  y += 1
+
+  t.move_cursor(win, y, x)
+  t.write(win, fmt.aprintf("Capture options: %v", state.capture_options))
   y += 1
 
   t.move_cursor(win, y, x)
@@ -149,7 +159,7 @@ draw_info :: proc(win: ^t.Screen) {
   t.move_cursor(win, y, x)
   t.write(win, fmt.aprintf("Test: %v", ~cast(u64)5))
   y += 1
-
+ 
   t.blit_screen(win)
 }
 
@@ -220,6 +230,10 @@ handle_move_input :: proc(key: t.Key) {
   case .D, .Arrow_Right:
     increment_file_move()
   case .Enter:
+    saved_board := make(map[PieceInfo]u64)
+    defer delete(saved_board)
+    copy_board(&saved_board, state.board.piece_map)
+
     if state.hovered_square != state.selected_square {
       state.board.piece_map[state.selected_piece] ~= state.selected_square
       state.board.piece_map[state.selected_piece] ~= state.hovered_square
@@ -238,6 +252,29 @@ handle_move_input :: proc(key: t.Key) {
         state.board.piece_map[ROOK_W] ~= (state.board.piece_map[ROOK_W] & state.hovered_square)
         state.board.piece_map[QUEEN_W] ~= (state.board.piece_map[QUEEN_W] & state.hovered_square)
         state.board.piece_map[KING_W] ~= (state.board.piece_map[KING_W] & state.hovered_square)
+      }
+
+      //Checking if move results in current player being in check
+      if is_check() {
+        copy_board(&state.board.piece_map, saved_board)
+        state.mode = .SELECT
+        state.hovered_square = state.selected_square
+        state.move_options = 0
+        state.capture_options = 0
+        state.selected_square = 0
+        state.selected_piece = PieceInfo{}
+        break
+      } else {
+        state.check = false
+      }
+
+      if is_check(colour =.WHITE if state.to_move == .BLACK else .BLACK) {
+        state.check = true
+        if is_checkmate(colour =.WHITE if state.to_move == .BLACK else .BLACK) {
+          state.running = false
+        }
+      } else {
+        state.check = false
       }
 
       if state.to_move == .WHITE {
