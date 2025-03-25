@@ -1,19 +1,36 @@
 package main
 
 import "core:fmt"
-import "core:os/os2"
-import "core:strings"
-import "core:encoding/ansi"
-import "core:unicode/utf8"
-
 import t "shared:TermCL"
-import "core:math"
 
+/*
+Mode enum.
+.SELECT mode is for moving around your pieces and selecting a piece.
+.MOVE mode is for moving around all a pieces given move or capture locations and selecting one.
+*/
 Mode :: enum {
   SELECT,
   MOVE,
 }
 
+/*
+Global game state.
+running: bool to track if the game is over or not.
+move_no: Tracks the move number
+check: Bool for tracking if the current board state is check.
+to_move: The colour of the pieces who are currently selecting their move.
+mode: Mode of the game, .SELECT or .MOVE.
+board: global board state.
+hovered_square: The square which the player is currently hovering on.
+selected_square: The square which the player has selected (The piece which will be moved)
+move_options: All of the available squares which can be moved to based on the currently selected piece.
+capture_options: All of the available squares in which an enemy piece can be captures based on the currently selected piece.
+last_move: Move struct which holds the information about the previous move, resets after every move.
+can_castle_white_qs: Bool for if the white pieces can still perform a queen side castle.
+can_castle_white_ks: Bool for if white can still castle on the king side.
+can_castle_black_qs: Bool for whether black can castle on the queen side.
+can_castle_black_ks: Bool for if black can do a king side castle.
+*/
 GameState :: struct {
   running: bool,
   move_no: u8,
@@ -33,11 +50,23 @@ GameState :: struct {
   can_castle_black_ks: bool,
 }
 
+/*
+Global variables.
+s: Screen to draw the game to.
+state: Global GameState struct.
+
+PAWN_MOVES_W: pre-computed white pawn moves for every square.
+PAWN_MOVES_B: pre-computed black pawn moves for every square.
+KNIGHT_MOVES: pre-computed knight moves for every square.
+BISHOP_MOVES: pre-computed bishop moves for each square.
+ROOK_MOVES: pre-computed rook moves for every square.
+QUEEN_MOVES: pre-computed queen moves for each square.
+KING_MOVES: pre-computed king moves for all squares.
+
+COLOURS: Array of foreground and background colour pairs to use for drawing to the terminal.
+*/
 s := t.init_screen()
 state := GameState{}
-
-BOARD_WIDTH  :: 130
-BOARD_HEIGHT :: 64
 
 PAWN_MOVES_W := precompute_pawn_moves_w()
 PAWN_MOVES_B := precompute_pawn_moves_b()
@@ -56,6 +85,9 @@ COLOURS := [][2]t.Color_8{
   {.Green, .Green}
 }
 
+/*
+Main function for initialising the game and running the main game loop.
+*/
 main :: proc() {
   state.running = true
   state.move_no = 1
@@ -108,8 +140,12 @@ main :: proc() {
   fmt.println(state.capture_options)
 }
 
+/*
+Function for drawing debug information to the screen.
+(TODO): Use for drawing game info to the screen like a timer and the current score, etc.
+*/
 draw_info :: proc(win: ^t.Screen) {
-  x : uint = 2
+/*  x : uint = 2
   y : uint = 70
   
   t.move_cursor(win, y, x)
@@ -160,9 +196,15 @@ draw_info :: proc(win: ^t.Screen) {
   t.write(win, fmt.aprintf("Test: %v", ~cast(u64)5))
   y += 1
  
-  t.blit_screen(win)
+  t.blit_screen(win)*/
 }
 
+/*
+Function for handling user input for piece selection.
+key: the key pressed by the user.
+
+Handles a set of keys for navigating around the avaialble pieces and selecting a piece to move.
+*/
 handle_select_input :: proc(key: t.Key) {
   #partial switch key {
   case .W, .Arrow_Up:
@@ -211,6 +253,14 @@ handle_select_input :: proc(key: t.Key) {
   }
 }
 
+/*
+Function for handling user input for piece moves.
+key: the key pressed by the user.
+
+Handles a set of keys for navigating around the avaialble piece moves and captures and selecting one to make.
+
+Checks if the move is valid, if it would result in check for either side, if it's a castle, or en-passeant for example.
+*/
 handle_move_input :: proc(key: t.Key) {
   #partial switch key {
   case .W, .Arrow_Up:
@@ -372,6 +422,10 @@ handle_move_input :: proc(key: t.Key) {
   }
 }
 
+/*
+Function for interrupting the main game loop to select which piece a pawn should promote into.
+Returns to the main game loop once a piece has been selected.
+*/
 handle_promotion_input :: proc() {
   input, has_input := t.read(&s)
   keys := t.parse_keyboard_input(input)
@@ -417,6 +471,9 @@ handle_promotion_input :: proc() {
   }
 }
 
+/*
+Go to the next avaialable or closest piece in an higher file. (Move piece selection to the right)
+*/
 increment_file_selected :: proc() {
   original_square := state.hovered_square
   file := get_file(original_square)
@@ -435,7 +492,9 @@ increment_file_selected :: proc() {
     }
   }
 }
-
+/*
+Go to the next avaialable or closest piece in an lower file. (Move piece selection to the left)
+*/
 decrement_file_selected :: proc() {
   original_square := state.hovered_square
   file := get_file(original_square)
@@ -455,6 +514,9 @@ decrement_file_selected :: proc() {
   } 
 }
 
+/*
+Go to the next avaialable or closest piece in an higher rank. (Move piece selection up)
+*/
 increment_rank_selected :: proc() {
   original_square := state.hovered_square
   rank := get_rank(original_square)
@@ -474,6 +536,9 @@ increment_rank_selected :: proc() {
   }
 }
 
+/*
+Go to the next avaialable or closest piece in an lower rank. (Move piece selection down)
+*/
 decrement_rank_selected :: proc() {
   original_square := state.hovered_square
   rank := get_rank(original_square)
@@ -493,6 +558,9 @@ decrement_rank_selected :: proc() {
   } 
 }
 
+/*
+Go to the next avaialable or closest move or capture in an higher file. (Move selection to the right)
+*/
 increment_file_move :: proc() {
   original_square := state.hovered_square
   file := get_file(original_square)
@@ -515,6 +583,9 @@ increment_file_move :: proc() {
   }
 }
 
+/*
+Go to the next avaialable or closest move or capture in an lower file. (Move selection to the left)
+*/
 decrement_file_move :: proc() {
   original_square := state.hovered_square
   file := get_file(original_square)
@@ -537,6 +608,9 @@ decrement_file_move :: proc() {
   }
 }
 
+/*
+Go to the next avaialable or closest move or capture in an higher rank. (Move selection up)
+*/
 increment_rank_move :: proc() {
   original_square := state.hovered_square
   rank := get_rank(original_square)
@@ -559,6 +633,9 @@ increment_rank_move :: proc() {
   }
 }
 
+/*
+Go to the next avaialable or closest move or capture in an lower rank. (Move piece selection down)
+*/
 decrement_rank_move :: proc() {
   original_square := state.hovered_square
   rank := get_rank(original_square)
@@ -579,136 +656,4 @@ decrement_rank_move :: proc() {
       state.hovered_square <<= 8
     }
   }
-}
-
-find_closest_piece :: proc(start_file, end_file, start_rank, end_rank: u8, colour: Colour) -> (square: u64) {
-  square_to_check: u64 = 0
-
-  squares: [dynamic]u64
-  defer delete(squares)
-
-  start_file := start_file
-  end_file := end_file
-  start_rank := start_rank
-  end_rank := end_rank
-
-  if start_file > end_file {
-    temp_file := start_file
-    start_file = end_file
-    end_file = temp_file
-  }
-
-  if start_rank < end_rank {
-    temp_start := start_rank
-    start_rank = end_rank
-    end_rank = temp_start
-  }
-  
-  file: u8 = start_file
-  rank: u8 = start_rank
-  start_square := (8 * (8 - start_rank)) + start_file - 1
-  square_to_check |= 1 << start_square
-
-  for rank >= end_rank {
-    piece_loop: for piece, piece_map in state.board.piece_map {
-      if square_to_check & piece_map != 0 && piece.colour == colour {
-        if square_to_check != state.hovered_square {
-          append(&squares, square_to_check)
-          break piece_loop
-        }
-      }
-    }
-    
-    if file < end_file {
-      file += 1
-      square_to_check <<= 1
-    } else {
-      file = start_file
-      square_to_check <<= 8 - (end_file - start_file)
-      rank -= 1
-    }
-  }
-  
-  closest_piece: u64 = 0
-  lowest_dist : f32 = 100
-
-  for i in 0..< len(squares) {
-    dist := calc_squares_distance(state.hovered_square, squares[i])
-
-    if dist < lowest_dist {
-      closest_piece = squares[i]
-      lowest_dist = dist
-    }
-  }
-  if len(squares) == 0 {
-    return 0
-  }
-  return closest_piece
-}
-
-find_closest_move_or_capture :: proc(start_file, end_file, start_rank, end_rank: u8) -> (square: u64) {
-  square_to_check: u64 = 0
-
-  squares: [dynamic]u64
-  defer delete(squares)
-
-  start_file := start_file
-  end_file := end_file
-  start_rank := start_rank
-  end_rank := end_rank
-
-  if start_file > end_file {
-    temp_file := start_file
-    start_file = end_file
-    end_file = temp_file
-  }
-
-  if start_rank < end_rank {
-    temp_start := start_rank
-    start_rank = end_rank
-    end_rank = temp_start
-  }
-
-  file: u8 = start_file
-  rank: u8 = start_rank
-  start_square := (8 * (8 - start_rank)) + start_file - 1
-  square_to_check |= 1 << start_square
-
-  for rank >= end_rank {
-    if square_to_check & state.move_options != 0 {
-      if square_to_check != state.hovered_square {
-        append(&squares, square_to_check)
-      }
-    }
-    if square_to_check & state.capture_options != 0 {
-      if square_to_check != state.hovered_square {
-        append(&squares, square_to_check)
-      }
-    }
-
-    if file < end_file {
-      file += 1
-      square_to_check <<= 1
-    } else {
-      file = start_file
-      square_to_check <<= 8 - (end_file - start_file)
-      rank -= 1
-    }
-  }
-  
-  closest_piece: u64 = 0
-  lowest_dist : f32 = 100
-  
-  for i in 0..< len(squares) {
-    dist := calc_squares_distance(state.hovered_square, squares[i])
-
-    if dist < lowest_dist {
-      closest_piece = squares[i]
-      lowest_dist = dist
-    }
-  }
-  if len(squares) == 0 {
-    return 0
-  }
-  return closest_piece
 }

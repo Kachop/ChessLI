@@ -1,11 +1,10 @@
 package main
 
-import "core:fmt"
 import t "shared:TermCL"
-/*
-All infor needed for drawing pieces to the screen
-*/
 
+/*
+ASCII representation of chess board tiles and all of the pieces.
+*/
 WHITE_PIECE :: "##"
 WHITE_BACKGROUND :: "00"
 BLACK_PIECE :: "||"
@@ -83,6 +82,9 @@ KING_IMG :: [64]u8{0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 1, 1, 1, 1, 0, 0,
   0, 1, 1, 1, 1, 1, 1, 0}
 
+/*
+Individual piece types. Seperates all individual piece types, even by colour.
+*/
 PieceType :: enum {
   PAWN_W,
   KNIGHT_W,
@@ -98,6 +100,9 @@ PieceType :: enum {
   KING_B,
 }
 
+/*
+Each individual piece type without explicit colour information.
+*/
 Piece :: enum {
   NONE,
 
@@ -109,12 +114,18 @@ Piece :: enum {
   KING,
 }
 
+/*
+Piece colour. .NONE is used for tiles, so that they don't flag as white or black pieces.
+*/
 Colour :: enum {
   NONE,
   WHITE,
   BLACK,
 }
 
+/*
+All the inforation needed about a specific piece type.
+*/
 PieceInfo :: struct {
   piece: Piece,
   value: uint,
@@ -122,6 +133,9 @@ PieceInfo :: struct {
   image: [64]u8,
 }
 
+/*
+White tile piece information
+*/
 TILE_W :: PieceInfo {
   piece = .NONE,
   value = 0,
@@ -129,6 +143,9 @@ TILE_W :: PieceInfo {
   image = TILE_IMG,
 }
 
+/*
+Black tile piece information
+*/
 TILE_B :: PieceInfo {
   piece = .NONE,
   value = 0,
@@ -136,6 +153,9 @@ TILE_B :: PieceInfo {
   image = TILE_IMG,
 }
 
+/*
+White pawn piece information
+*/
 PAWN_W :: PieceInfo {
   piece = .PAWN,
   value = 1,
@@ -143,6 +163,9 @@ PAWN_W :: PieceInfo {
   image = PAWN_IMG,
 }
 
+/*
+Black pawn piece information
+*/
 PAWN_B :: PieceInfo {
   piece = .PAWN,
   value = 1,
@@ -150,6 +173,9 @@ PAWN_B :: PieceInfo {
   image = PAWN_IMG,
 }
 
+/*
+White knight piece information
+*/
 KNIGHT_W :: PieceInfo {
   piece = .KNIGHT,
   value = 3,
@@ -157,6 +183,9 @@ KNIGHT_W :: PieceInfo {
   image = KNIGHT_IMG,
 }
 
+/*
+Black knight piece information
+*/
 KNIGHT_B :: PieceInfo {
   piece = .KNIGHT,
   value = 3,
@@ -164,6 +193,9 @@ KNIGHT_B :: PieceInfo {
   image = KNIGHT_IMG,
 }
 
+/*
+White bishop piece information
+*/
 BISHOP_W :: PieceInfo {
   piece = .BISHOP,
   value = 3,
@@ -171,6 +203,9 @@ BISHOP_W :: PieceInfo {
   image = BISHOP_IMG,
 }
 
+/*
+Black bishop piece information
+*/
 BISHOP_B :: PieceInfo {
   piece = .BISHOP,
   value = 3,
@@ -178,6 +213,9 @@ BISHOP_B :: PieceInfo {
   image = BISHOP_IMG,
 }
 
+/*
+White rook piece information
+*/
 ROOK_W :: PieceInfo {
   piece = .ROOK,
   value = 5,
@@ -185,6 +223,9 @@ ROOK_W :: PieceInfo {
   image = ROOK_IMG,
 }
 
+/*
+Black rook piece information
+*/
 ROOK_B :: PieceInfo {
   piece = .ROOK,
   value = 5,
@@ -192,6 +233,9 @@ ROOK_B :: PieceInfo {
   image = ROOK_IMG,
 }
 
+/*
+White queen piece information
+*/
 QUEEN_W :: PieceInfo {
   piece = .QUEEN,
   value = 9,
@@ -199,6 +243,9 @@ QUEEN_W :: PieceInfo {
   image = QUEEN_IMG,
 }
 
+/*
+Black queen piece information
+*/
 QUEEN_B :: PieceInfo {
   piece = .QUEEN,
   value = 9,
@@ -206,6 +253,9 @@ QUEEN_B :: PieceInfo {
   image = QUEEN_IMG,
 }
 
+/*
+White king piece information
+*/
 KING_W :: PieceInfo {
   piece = .KING,
   value = 10,
@@ -213,6 +263,9 @@ KING_W :: PieceInfo {
   image = KING_IMG,
 }
 
+/*
+Black king piece information
+*/
 KING_B :: PieceInfo {
   piece = .KING,
   value = 10,
@@ -220,6 +273,13 @@ KING_B :: PieceInfo {
   image = KING_IMG,
 }
 
+/*
+Function for drawing an individual piece.
+win: The screen to draw the piece to.
+x, y: The coordinates to draw the piece. (0, 0) is top-left.
+piece: The piece to draw. Each PieceInfo contains the image data for drawing the piece.
+colour: colour to draw the piece, default just draws the piece white or black, other colours are used to highlight pieces for example.
+*/
 draw_piece :: proc(win: ^t.Screen, x, y: uint, piece: PieceInfo, colour: uint = 0) {
   draw_x := x
   draw_y := y

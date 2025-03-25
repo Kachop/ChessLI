@@ -1,28 +1,8 @@
 package main
 
-import "core:fmt"
-import "core:strconv"
-import "core:unicode/utf8"
-
 /*
-File for all of the game logic.
--Moving pieces
--Captures
--Check / checkmate
+Returns the u64 containing all of the combined locations of any white pieces on a given board.
 */
-
-files_str_set :: bit_set['a'..='h']
-ranks_str_set :: bit_set['1'..='8']
-ranks_num_set :: bit_set[1..=8]
-
-files_str :: files_str_set{'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'}
-ranks_str :: ranks_str_set{'1', '2', '3', '4', '5', '6', '7', '8'}
-ranks_num :: ranks_num_set{1, 2, 3, 4, 5, 6, 7, 8}
-
-/*
-Returns all combined positions of the white pieces
-*/
-
 get_white_pieces :: proc(board: map[PieceInfo]u64 = state.board.piece_map) -> u64 {
   positions: u64 = 0
   positions |= board[PAWN_W]
@@ -35,9 +15,8 @@ get_white_pieces :: proc(board: map[PieceInfo]u64 = state.board.piece_map) -> u6
 }
 
 /*
-Returns all combined positions of the black pieces
+Returns all combined positions of the black pieces on a given board.
 */
-
 get_black_pieces :: proc(board: map[PieceInfo]u64 = state.board.piece_map) -> u64 {
   positions: u64 = 0
   positions |= board[PAWN_B]
@@ -49,6 +28,9 @@ get_black_pieces :: proc(board: map[PieceInfo]u64 = state.board.piece_map) -> u6
   return positions
 }
 
+/*
+Returns all of the combined empty squares on a given board.
+*/
 get_empty_squares :: proc(board: map[PieceInfo]u64 = state.board.piece_map) -> u64 {
   positions: u64 = 0
   positions |= (~get_white_pieces(board) & (~get_black_pieces(board)))
@@ -56,8 +38,12 @@ get_empty_squares :: proc(board: map[PieceInfo]u64 = state.board.piece_map) -> u
 }
 
 /*
-Based on the currently selected piece find possible moves and captures.
-All available moves pre-calculated. This narrows down the moves and finds the captures.
+Functons for calculating all of the possible piece moves and captures.
+board: board to evaluate the moves and captures for.
+square: the location of the piece to evaluate.
+colour: the colour of the piece which is being evaluated.
+
+Work from the pre-calculated list of all available moves and captures for that given piece type and piece location and narrows down from that list based on the specific board properties.
 */
 get_pawn_moves_and_captures :: proc(board: map[PieceInfo]u64 = state.board.piece_map, square: u64 = state.selected_square, colour: Colour = state.to_move) {
   if colour == .WHITE {
@@ -349,8 +335,7 @@ get_king_moves_and_captures :: proc(board: map[PieceInfo]u64 = state.board.piece
 }
 /*
 Checks a given board state (current board state by default) and for a given colour pieces if the king is in check
-Loops through all of the pieces of a given colour and accumulates all of the available captures.
-If one of those avaialble captures is the king then returns true. If not returns false
+Loops through all of the pieces of the opposite colour and evaluates the available captures one by one. If any piece can capture the king, the function returns true.
 */
 
 is_check :: proc(board: map[PieceInfo]u64 = state.board.piece_map, colour: Colour = state.to_move) -> bool {
@@ -393,6 +378,13 @@ is_check :: proc(board: map[PieceInfo]u64 = state.board.piece_map, colour: Colou
   return false
 }
 
+/*
+For a given piece type and location calculate all of the possible moves and capture for that piece and perform each individual move and capture. For each given board state, checks if the position results in check or not.
+
+Returns true if for all moves and captures of a given piece the board states still result in check. Returns false otherwise.
+
+Used to determine if a piece could be used to remove the check.
+*/
 check_moves_and_captures :: proc(piece_info: PieceInfo, to_move_from: u64) -> bool {
   original_board := make(map[PieceInfo]u64)
   defer delete(original_board)

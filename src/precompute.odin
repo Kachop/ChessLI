@@ -1,7 +1,8 @@
 package main
 
-import "core:fmt"
-
+/*
+Converts a given array of 64 numbers (0's and 1's) to a single u64. Used to lazily convert the default tile layout instead of hardcoding it.
+*/
 array_64_to_u64 :: proc(array: [64]u8) -> u64 {
   result: u64 = 0
 
@@ -14,6 +15,9 @@ array_64_to_u64 :: proc(array: [64]u8) -> u64 {
   return result
 }
 
+/*
+Returns the index (0-63) of any given square.
+*/
 square_to_index :: proc(square: u64) -> uint {
   square := square
   index: uint = 0
@@ -24,6 +28,10 @@ square_to_index :: proc(square: u64) -> uint {
   return index
 }
 
+/*
+Functions for precomputing all possible moves for each piece type for each board location.
+Returns an array with all possible moves (u64) for each square. Index 0 is all moves for a piece in square 0, index 63 is all moves for a piece in square 63, and so on.
+*/
 precompute_pawn_moves_w :: proc() -> [64]u64 {
   pawn_moves: [64]u64
   for i in 0 ..< 64 {
